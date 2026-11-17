@@ -249,6 +249,38 @@ public class BettingService(Supabase.Client client)
             .Get()).Models;
     }
 
+    // Blackjack – every action returns the visible state; the profile is refreshed by the page after its animation.
+
+    public Task<BlackjackState?> BlackjackCurrentAsync() => BlackjackRpc("blackjack_current", new Dictionary<string, object>());
+
+    public Task<BlackjackState?> BlackjackStartAsync(long bet) =>
+        BlackjackRpc("blackjack_start", new Dictionary<string, object> { ["p_bet"] = bet });
+
+    public Task<BlackjackState?> BlackjackHitAsync(Guid handId) =>
+        BlackjackRpc("blackjack_hit", new Dictionary<string, object> { ["p_hand_id"] = handId });
+
+    public Task<BlackjackState?> BlackjackStandAsync(Guid handId) =>
+        BlackjackRpc("blackjack_stand", new Dictionary<string, object> { ["p_hand_id"] = handId });
+
+    public Task<BlackjackState?> BlackjackDoubleAsync(Guid handId) =>
+        BlackjackRpc("blackjack_double", new Dictionary<string, object> { ["p_hand_id"] = handId });
+
+    public async Task<List<BlackjackHistoryEntry>> BlackjackHistoryAsync(int limit = 10)
+    {
+        var response = await client.Rpc("blackjack_history", new Dictionary<string, object> { ["p_limit"] = limit });
+        return string.IsNullOrWhiteSpace(response.Content) || response.Content == "null"
+            ? []
+            : JsonSerializer.Deserialize<List<BlackjackHistoryEntry>>(response.Content) ?? [];
+    }
+
+    private async Task<BlackjackState?> BlackjackRpc(string function, Dictionary<string, object> parameters)
+    {
+        var response = await client.Rpc(function, parameters);
+        return string.IsNullOrWhiteSpace(response.Content) || response.Content == "null"
+            ? null
+            : JsonSerializer.Deserialize<BlackjackState>(response.Content);
+    }
+
     // ---------- Bet requests ----------
 
     /// <summary>Raised when requests were submitted, approved, rejected or withdrawn (e.g. for the admin badge).</summary>

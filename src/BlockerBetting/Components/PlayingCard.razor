@@ -1,0 +1,16 @@
+@* A playing card. Code -1 renders the back (face-down card). *@
+<div class="bb-pc @(Code < 0 ? "bb-pc-back" : Cards.IsRed(Code) ? "bb-pc-red" : "bb-pc-black") @(Animate ? "bb-pc-deal" : "")"
+     style="@(Animate ? $"animation-delay:{Delay}ms" : "")" role="img" aria-label="@Cards.Name(Code)">
+    @if (Code >= 0)
+    {
+        <span class="bb-pc-corner">@Cards.Rank(Code)<br />@Cards.Suit(Code)</span>
+        <span class="bb-pc-center">@Cards.Suit(Code)</span>
+        <span class="bb-pc-corner bb-pc-corner-bottom">@Cards.Rank(Code)<br />@Cards.Suit(Code)</span>
+    }
+</div>
+
+@code {
+    [Parameter, EditorRequired] public int Code { get; set; }
+    [Parameter] public bool Animate { get; set; } = true;
+    [Parameter] public int Delay { get; set; }
+}

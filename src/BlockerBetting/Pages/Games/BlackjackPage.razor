@@ -1,0 +1,294 @@
+@page "/games/blackjack"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+<PageTitle>Blackjack · BlockerBetting</PageTitle>
+
+<MudButton Href="games" StartIcon="@Icons.Material.Rounded.ArrowBack" Variant="Variant.Text" Color="Color.Default" Size="Size.Small" Class="mb-4">Alle Spiele</MudButton>
+<PageHeader Title="Blackjack" Eyebrow="Spiele · Beta"
+            Subtitle="Komm näher an 21 als der Dealer, ohne dich zu überkaufen. Blackjack zahlt 3:2." />
+
+<MudGrid Spacing="4">
+    <MudItem xs="12" lg="8">
+        <div class="bb-felt">
+            @* Dealer *@
+            <div class="bb-felt-row">
+                <div class="bb-felt-label">
+                    Dealer
+                    @if (_state is not null)
+                    {
+                        <span class="bb-felt-total">@TotalText(VisibleDealer, hidden: VisibleDealer.Contains(-1))</span>
+                    }
+                </div>
+                <div class="bb-hand">
+                    @if (_state is null)
+                    {
+                        <div class="bb-pc bb-pc-slot"></div><div class="bb-pc bb-pc-slot"></div>
+                    }
+                    else
+                    {
+                        @for (var i = 0; i < VisibleDealer.Count; i++)
+                        {
+                            var code = VisibleDealer[i];
+                            <PlayingCard @key="@($"d{_round}-{i}-{code}")" Code="code" Delay="@(_dealDelays ? DealerDelay(i) : 0)" />
+                        }
+                    }
+                </div>
+            </div>
+
+            @* Message *@
+            <div class="bb-felt-message">
+                @if (_revealing)
+                {
+                    <span class="bb-felt-banner">Dealer zieht …</span>
+                }
+                else if (_state is { IsPlaying: false } done)
+                {
+                    <span class="bb-felt-banner bb-felt-banner-@OutcomeTone(done)">@OutcomeText(done)</span>
+                }
+                else if (_state is { IsPlaying: true })
+                {
+                    <span class="bb-felt-hint">Karte ziehen oder halten?</span>
+                }
+                else
+                {
+                    <span class="bb-felt-hint">Einsatz wählen und austeilen</span>
+                }
+            </div>
+
+            @* Player *@
+            <div class="bb-felt-row">
+                <div class="bb-hand">
+                    @if (_state is null)
+                    {
+                        <div class="bb-pc bb-pc-slot"></div><div class="bb-pc bb-pc-slot"></div>
+                    }
+                    else
+                    {
+                        @for (var i = 0; i < _state.Player.Length; i++)
+                        {
+                            var code = _state.Player[i];
+                            <PlayingCard @key="@($"p{_round}-{i}")" Code="code" Delay="@(_dealDelays && i < 2 ? i * 360 : 0)" />
+                        }
+                    }
+                </div>
+                <div class="bb-felt-label">
+                    Du
+                    @if (_state is not null)
+                    {
+                        <span class="bb-felt-total @(_state.PlayerTotal > 21 ? "bb-felt-total-bust" : "")">@TotalText(_state.Player, hidden: false)</span>
+                    }
+                    @if (_state is not null)
+                    {
+                        <span class="bb-felt-bet"><span class="bb-coin"></span>@Fmt.Coins(_state.Bet)@(_state.Doubled ? " (verdoppelt)" : "")</span>
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div class="bb-card bb-card-pad mt-4">
+            @if (_state is { IsPlaying: true } playing)
+            {
+                <div class="bb-bj-actions">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="_busy" OnClick="Hit"
+                               StartIcon="@Icons.Material.Rounded.Add">Karte</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Large" Disabled="_busy" OnClick="Stand"
+                               StartIcon="@Icons.Material.Rounded.PanTool">Halten</MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Large" Disabled="@(_busy || !playing.CanDouble)" OnClick="Double"
+                               StartIcon="@Icons.Material.Rounded.KeyboardDoubleArrowUp">Verdoppeln</MudButton>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex align-center flex-wrap gap-2 mb-4">
+                    <div class="bb-section-title mb-0">Einsatz</div>
+                    <MudSpacer />
+                    <span class="bb-muted" style="font-size:0.85rem">Guthaben&nbsp;<Coins Value="@(Betting.CurrentProfile?.Coins ?? 0)" /></span>
+                </div>
+                <div class="d-flex align-center flex-wrap gap-3">
+                    <div class="bb-chips">
+                        @foreach (var value in ChipValues)
+                        {
+                            <button type="button" class="bb-chip bb-chip-@value" disabled="@(_busy || _revealing)" @onclick="() => _bet += value"
+                                    aria-label="@value Coins hinzufügen">@value</button>
+                        }
+                    </div>
+                    <MudSpacer />
+                    <div style="text-align:right">
+                        <div class="bb-muted" style="font-size:0.75rem">Einsatz</div>
+                        <Coins Value="_bet" Style="font-size:1.25rem" />
+                    </div>
+                    <MudIconButton Icon="@Icons.Material.Rounded.DeleteSweep" Disabled="@(_bet == 0 || _busy || _revealing)" OnClick="@(() => _bet = 0)" aria-label="Einsatz leeren" />
+                </div>
+                <MudButton Variant="Variant.Filled" FullWidth="true" Class="bb-cta mt-4" OnClick="Deal"
+                           Disabled="@(_busy || _revealing || _bet <= 0 || _bet > (Betting.CurrentProfile?.Coins ?? 0))">
+                    @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Style="color:inherit" /> }
+                    @(_bet > (Betting.CurrentProfile?.Coins ?? 0) ? "Nicht genug Coins" : _state is null ? "Austeilen" : "Neue Runde")
+                </MudButton>
+            }
+        </div>
+    </MudItem>
+
+    <MudItem xs="12" lg="4">
+        <div class="bb-card bb-card-pad mb-4">
+            <div class="bb-section-title">Regeln</div>
+            <ul class="bb-rules">
+                <li>Bildkarten zählen 10, Asse 1 oder 11.</li>
+                <li>Blackjack (Ass + 10er mit den ersten zwei Karten) zahlt <b>3:2</b>, sonstiger Gewinn <b>1:1</b>.</li>
+                <li>Dealer zieht bis 16 und steht ab 17.</li>
+                <li><b>Verdoppeln:</b> Einsatz verdoppeln, genau eine weitere Karte.</li>
+                <li>Gleichstand: Einsatz zurück. 6 Decks, jede Runde frisch gemischt.</li>
+            </ul>
+        </div>
+        @if (_history.Count > 0)
+        {
+            <div class="bb-section-title">Deine letzten Runden</div>
+            <div class="bb-card">
+                @foreach (var h in _history)
+                {
+                    var (label, tint) = HistoryLabel(h.Outcome);
+                    <div class="bb-list-row" style="padding:0.6rem 1rem">
+                        <span class="bb-pill bb-tint-@tint">@label</span>
+                        <div class="bb-grow bb-muted" style="font-size:0.8rem">@h.PlayerTotal : @h.DealerTotal</div>
+                        <span class="bb-num" style="font-weight:700; color:@(h.Payout > h.Bet ? "var(--mud-palette-success)" : h.Payout == h.Bet ? "inherit" : "var(--mud-palette-error)")">
+                            @(h.Payout - h.Bet > 0 ? "+" : "")@Fmt.Coins(h.Payout - h.Bet)
+                        </span>
+                    </div>
+                }
+            </div>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+    private static readonly int[] ChipValues = [5, 10, 25, 100, 500];
+
+    private BlackjackState? _state;
+    private List<BlackjackHistoryEntry> _history = [];
+    private long _bet = 10;
+    private bool _busy;
+    private bool _revealing;
+    private bool _dealDelays;
+    private int _round;
+    private int _dealerShown;
+
+    /// <summary>Dealer cards currently shown (revealed one by one at the end of a round).</summary>
+    private List<int> VisibleDealer => _state is null ? [] : _state.Dealer.Take(Math.Max(_dealerShown, 0)).ToList();
+
+    private static int DealerDelay(int index) => index switch { 0 => 180, 1 => 540, _ => 0 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _state = await Betting.BlackjackCurrentAsync();   // resume an unfinished hand
+            if (_state is not null)
+            {
+                _dealerShown = _state.Dealer.Length;
+                _bet = _state.Bet;
+            }
+            _history = await Betting.BlackjackHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+    }
+
+    private Task Deal() => Act(async () =>
+    {
+        var state = await Betting.BlackjackStartAsync(_bet);
+        _round++;
+        _dealDelays = true;
+        return state;
+    });
+
+    private Task Hit() => Act(async () => { _dealDelays = false; return await Betting.BlackjackHitAsync(_state!.Id); });
+
+    private Task Stand() => Act(async () => { _dealDelays = false; return await Betting.BlackjackStandAsync(_state!.Id); });
+
+    private Task Double() => Act(async () => { _dealDelays = false; return await Betting.BlackjackDoubleAsync(_state!.Id); });
+
+    private async Task Act(Func<Task<BlackjackState?>> action)
+    {
+        if (_busy) return;
+        _busy = true;
+        try
+        {
+            var previous = _state;
+            var state = await action();
+            if (state is null) return;
+            var newRound = previous is null || previous.Id != state.Id;
+            _state = state;
+
+            if (state.IsPlaying)
+            {
+                _dealerShown = state.Dealer.Length;
+                await Betting.RefreshProfileAsync();   // stake was booked
+                return;
+            }
+
+            // Round over: let the initial deal land, then reveal the dealer's cards one by one.
+            _dealerShown = newRound ? 2 : 1;
+            _revealing = true;
+            StateHasChanged();
+            if (newRound) await Task.Delay(900);
+            while (_dealerShown < state.Dealer.Length)
+            {
+                await Task.Delay(600);
+                _dealerShown++;
+                StateHasChanged();
+            }
+            await Task.Delay(350);
+            _revealing = false;
+            await Betting.RefreshProfileAsync();
+            _history = await Betting.BlackjackHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+            _revealing = false;
+        }
+    }
+
+    private static string TotalText(IReadOnlyCollection<int> cards, bool hidden)
+    {
+        var total = Cards.Total(cards);
+        var text = Cards.IsSoft(cards) && total < 21 ? $"{total - 10}/{total}" : total.ToString();
+        return hidden ? $"{text} + ?" : text;
+    }
+
+    private static string OutcomeTone(BlackjackState s) => s.Outcome switch
+    {
+        "blackjack" or "win" => "win",
+        "push" => "push",
+        _ => "lose",
+    };
+
+    private static string OutcomeText(BlackjackState s)
+    {
+        var dealer = Cards.Total(s.Dealer);
+        return s.Outcome switch
+        {
+            "blackjack" => $"Blackjack! +{Fmt.Coins(s.Net)} Coins",
+            "win" when dealer > 21 => $"Dealer überkauft – du gewinnst +{Fmt.Coins(s.Net)}",
+            "win" => $"Gewonnen! +{Fmt.Coins(s.Net)} Coins",
+            "push" => "Unentschieden – Einsatz zurück",
+            "lose" when s.PlayerTotal > 21 => $"Überkauft – −{Fmt.Coins(s.Bet)} Coins",
+            "lose" when s.Dealer.Length == 2 && dealer == 21 => $"Dealer hat Blackjack – −{Fmt.Coins(s.Bet)} Coins",
+            _ => $"Verloren – −{Fmt.Coins(s.Bet)} Coins",
+        };
+    }
+
+    private static (string Label, string Tint) HistoryLabel(string outcome) => outcome switch
+    {
+        "blackjack" => ("Blackjack", "success"),
+        "win" => ("Gewonnen", "success"),
+        "push" => ("Unentschieden", "info"),
+        _ => ("Verloren", "error"),
+    };
+}

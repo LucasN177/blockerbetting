@@ -1265,3 +1265,233 @@ body {
         transition-duration: 0.8s;
     }
 }
+
+/* ---------- Blackjack ---------- */
+
+.bb-felt {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 1rem;
+    min-height: 430px;
+    padding: 1.5rem;
+    border-radius: 24px;
+    color: #fff;
+    background:
+        radial-gradient(ellipse at 50% 40%, rgba(255, 255, 255, 0.08), transparent 60%),
+        linear-gradient(160deg, #065f46, #064e3b 70%);
+    box-shadow: inset 0 0 0 3px rgba(201, 168, 106, 0.55), var(--bb-shadow-md);
+    overflow: hidden;
+}
+
+    .bb-felt::before {
+        content: "BLACKJACK ZAHLT 3:2 · DEALER STEHT AB 17";
+        position: absolute;
+        left: 50%;
+        top: calc(50% + 34px);
+        transform: translate(-50%, -50%);
+        font-size: 0.7rem;
+        letter-spacing: 0.25em;
+        color: rgba(253, 230, 138, 0.25);
+        white-space: nowrap;
+        pointer-events: none;
+    }
+
+.bb-felt-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+}
+
+.bb-felt-label {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.75);
+}
+
+.bb-felt-total {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: rgba(0, 0, 0, 0.35);
+    color: #fff;
+    font-size: 0.9rem;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+}
+
+.bb-felt-total-bust {
+    background: #b91c1c;
+}
+
+.bb-felt-bet {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    text-transform: none;
+    letter-spacing: 0;
+    color: #fde68a;
+}
+
+.bb-felt-message {
+    display: flex;
+    justify-content: center;
+    min-height: 44px;
+    position: relative;
+    z-index: 1;
+}
+
+.bb-felt-hint {
+    align-self: center;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.9rem;
+}
+
+.bb-felt-banner {
+    align-self: center;
+    padding: 0.55rem 1.2rem;
+    border-radius: 999px;
+    font-weight: 800;
+    background: rgba(0, 0, 0, 0.35);
+    animation: bb-pop 0.35s ease-out both;
+}
+
+.bb-felt-banner-win { background: linear-gradient(135deg, #fde68a, #f59e0b); color: #78350f; }
+.bb-felt-banner-push { background: rgba(255, 255, 255, 0.9); color: #0f172a; }
+.bb-felt-banner-lose { background: rgba(185, 28, 28, 0.9); }
+
+@keyframes bb-pop {
+    from { transform: scale(0.85); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+.bb-hand {
+    display: flex;
+    justify-content: center;
+    min-height: 112px;
+}
+
+    .bb-hand > .bb-pc + .bb-pc {
+        margin-left: -28px;
+    }
+
+/* Playing cards */
+
+.bb-pc {
+    position: relative;
+    width: 78px;
+    height: 112px;
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.35);
+    flex-shrink: 0;
+    font-family: 'Inter', sans-serif;
+}
+
+.bb-pc-red { color: #c62828; }
+.bb-pc-black { color: #111827; }
+
+.bb-pc-back {
+    background:
+        repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.12) 0 6px, transparent 6px 12px),
+        linear-gradient(135deg, #4338ca, #1e1b4b);
+    border: 4px solid #fff;
+}
+
+.bb-pc-slot {
+    background: transparent;
+    border: 2px dashed rgba(255, 255, 255, 0.25);
+    box-shadow: none;
+}
+
+.bb-pc-corner {
+    position: absolute;
+    left: 7px;
+    top: 5px;
+    font-size: 0.85rem;
+    font-weight: 800;
+    line-height: 1.05;
+    text-align: center;
+}
+
+.bb-pc-corner-bottom {
+    left: auto;
+    top: auto;
+    right: 7px;
+    bottom: 5px;
+    transform: rotate(180deg);
+}
+
+.bb-pc-center {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font-size: 2.2rem;
+}
+
+.bb-pc-deal {
+    animation: bb-deal 0.38s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+
+@keyframes bb-deal {
+    from { transform: translate(140px, -160px) rotate(25deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+}
+
+.bb-bj-actions {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.75rem;
+}
+
+.bb-rules {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.85rem;
+    color: var(--mud-palette-text-secondary);
+}
+
+    .bb-rules li + li {
+        margin-top: 0.35rem;
+    }
+
+@media (max-width: 600px) {
+    .bb-felt {
+        min-height: 360px;
+        padding: 1rem;
+    }
+
+    .bb-pc {
+        width: 60px;
+        height: 86px;
+    }
+
+    .bb-hand {
+        min-height: 86px;
+    }
+
+        .bb-hand > .bb-pc + .bb-pc {
+            margin-left: -22px;
+        }
+
+    .bb-pc-center {
+        font-size: 1.7rem;
+    }
+
+    .bb-bj-actions {
+        grid-template-columns: 1fr 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bb-pc-deal, .bb-felt-banner {
+        animation: none;
+    }
+}
