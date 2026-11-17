@@ -2,6 +2,7 @@
 @inject BettingService Betting
 @inject ISnackbar Snackbar
 @inject IDialogService Dialogs
+@inject IJSRuntime Js
 
 <PageTitle>Wette vorschlagen · BlockerBetting</PageTitle>
 
@@ -18,6 +19,17 @@
                     sie nach dem Wettschluss selbst auflösen und auszahlen.
                 </div>
             </div>
+            @if (_basedOn is not null)
+            {
+                <div class="d-flex align-center gap-3 mb-6 pa-4" style="border-radius:14px; background:rgba(var(--mud-palette-warning-rgb),0.12)">
+                    <MudIcon Icon="@Icons.Material.Rounded.EditNote" Color="Color.Warning" />
+                    <div class="bb-grow" style="font-size:0.88rem">
+                        Neue Anfrage auf Basis von <b>„@_basedOn.Title“</b>. Alle Felder sind anpassbar – die alte Anfrage bleibt unverändert.
+                        @if (_deadlineCleared) { <span> Der alte Wettschluss war abgelaufen, bitte einen neuen wählen.</span> }
+                    </div>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" OnClick="ResetForm">Verwerfen</MudButton>
+                </div>
+            }
             <BetForm @key="_formKey" Draft="_draft" RequireDeadline="true" OddsAreSuggestion="true" Busy="_busy"
                      OddsHint="Deine Quoten sind ein Vorschlag – der Admin kann sie vor der Freigabe anpassen."
                      SubmitText="Vorschlag einreichen" SubmitIcon="@Icons.Material.Rounded.Send" OnSubmit="Submit" />
@@ -43,24 +55,61 @@
                 @foreach (var request in _requests)
                 {
                     var (label, css) = Fmt.Status(request);
-                    <div class="bb-list-row" style="align-items:flex-start">
-                        <div class="bb-grow">
-                            <div class="d-flex align-center gap-2 mb-1">
-                                <span class="bb-pill @css">@label</span>
-                                <span class="bb-muted" style="font-size:0.75rem">@Fmt.ShortDate(request.CreatedAt)</span>
-                            </div>
-                            <div style="font-weight:600">@request.Title</div>
-                            <div class="bb-muted" style="font-size:0.8rem">
-                                @string.Join(" · ", request.Options.Select(o => $"{o.Label} {Fmt.Odds(o.Odds)}"))
-                            </div>
-                            @if (request.Status == RequestStatus.Rejected && !string.IsNullOrWhiteSpace(request.AdminNote))
-                            {
-                                <div class="mt-2 pa-2" style="font-size:0.8rem; border-radius:10px; background:rgba(var(--mud-palette-error-rgb),0.08)">
-                                    <b>Begründung:</b> @request.AdminNote
+                    var reusable = request.Status is RequestStatus.Rejected or RequestStatus.Withdrawn;
+                    // Rejected requests are always shown in full, the others on demand.
+                    var expanded = request.Status == RequestStatus.Rejected || _expanded.Contains(request.Id);
+                    <div class="bb-list-row" style="align-items:flex-start; flex-direction:column; gap:0.5rem">
+                        <div class="d-flex align-start gap-2" style="width:100%">
+                            <div class="bb-grow">
+                                <div class="d-flex align-center gap-2 mb-1">
+                                    <span class="bb-pill @css">@label</span>
+                                    <span class="bb-muted" style="font-size:0.75rem">@Fmt.ShortDate(request.CreatedAt)</span>
                                 </div>
+                                <div style="font-weight:600">@request.Title</div>
+                                @if (!expanded)
+                                {
+                                    <div class="bb-muted" style="font-size:0.8rem">
+                                        @string.Join(" · ", request.Options.Select(o => $"{o.Label} {Fmt.Odds(o.Odds)}"))
+                                    </div>
+                                }
+                            </div>
+                            @if (request.Status != RequestStatus.Rejected)
+                            {
+                                <MudIconButton Size="Size.Small" Icon="@(expanded ? Icons.Material.Rounded.ExpandLess : Icons.Material.Rounded.ExpandMore)"
+                                               OnClick="@(() => ToggleExpanded(request.Id))" aria-label="Details" />
                             }
                         </div>
-                        <div class="d-flex flex-column align-end gap-1">
+
+                        @if (expanded)
+                        {
+                            <div class="bb-request-details">
+                                @if (!string.IsNullOrWhiteSpace(request.Description))
+                                {
+                                    <div style="white-space:pre-line">@request.Description</div>
+                                }
+                                <div class="d-flex flex-wrap gap-1">
+                                    @foreach (var option in request.Options)
+                                    {
+                                        <span class="bb-pill bb-pill-neutral" style="padding-left:10px">
+                                            @option.Label <b style="color:var(--mud-palette-text-primary)">@Fmt.Odds(option.Odds)</b>
+                                        </span>
+                                    }
+                                </div>
+                                <div class="bb-muted" style="font-size:0.78rem">
+                                    Wettschluss @Fmt.Date(request.ClosesAt)@(request.ClosesAt <= DateTime.UtcNow ? " (abgelaufen)" : "")
+                                    · eingereicht @Fmt.Date(request.CreatedAt)
+                                    @if (request.ReviewedAt is { } reviewed) { <span> · geprüft @Fmt.Date(reviewed)</span> }
+                                </div>
+                                @if (request.Status == RequestStatus.Rejected)
+                                {
+                                    <div class="pa-2" style="border-radius:10px; background:rgba(var(--mud-palette-error-rgb),0.08)">
+                                        <b>Begründung:</b> @(string.IsNullOrWhiteSpace(request.AdminNote) ? "keine angegeben" : request.AdminNote)
+                                    </div>
+                                }
+                            </div>
+                        }
+
+                        <div class="d-flex flex-wrap gap-1 justify-end" style="width:100%">
                             @if (request.Status == RequestStatus.Approved && request.EventId is { } eventId)
                             {
                                 <MudButton Href="@($"events/{eventId}")" Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary">Zur Wette</MudButton>
@@ -69,6 +118,11 @@
                             {
                                 <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Disabled="_busy"
                                            OnClick="@(() => Withdraw(request))">Zurückziehen</MudButton>
+                            }
+                            @if (reusable)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.EditNote"
+                                           Disabled="_busy" OnClick="@(() => Reuse(request))">Überarbeiten & neu einreichen</MudButton>
                             }
                         </div>
                     </div>
@@ -81,6 +135,43 @@
 @code {
     private BetDraft _draft = BetDraft.NewYesNo();
     private int _formKey;
+    private BetRequest? _basedOn;
+    private bool _deadlineCleared;
+    private readonly HashSet<Guid> _expanded = [];
+
+    private void ToggleExpanded(Guid id)
+    {
+        if (!_expanded.Remove(id)) _expanded.Add(id);
+    }
+
+    /// <summary>Copies a rejected/withdrawn request into the form as a new, fully editable request.</summary>
+    private void Reuse(BetRequest request)
+    {
+        _draft = BetDraft.From(request);
+        _deadlineCleared = request.ClosesAt <= DateTime.UtcNow;
+        if (_deadlineCleared) _draft.ClosesDate = null;
+        _basedOn = request;
+        _formKey++;
+        _scrollToForm = true;
+    }
+
+    private bool _scrollToForm;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Scroll once the re-created form has been rendered (scrolling earlier gets cut off by the re-render).
+        if (!_scrollToForm) return;
+        _scrollToForm = false;
+        await Js.InvokeVoidAsync("bbScrollToTop");
+    }
+
+    private void ResetForm()
+    {
+        _draft = BetDraft.NewYesNo();
+        _basedOn = null;
+        _deadlineCleared = false;
+        _formKey++;
+    }
     private List<BetRequest>? _requests;
     private bool _busy;
 
@@ -103,8 +194,7 @@
         {
             await Betting.SubmitBetRequestAsync(draft.Title.Trim(), draft.Description, draft.ClosesAtUtc!.Value, draft.ToOptionInputs());
             Snackbar.Add("Danke! Dein Vorschlag wurde eingereicht und wird von einem Admin geprüft.", Severity.Success);
-            _draft = BetDraft.NewYesNo();
-            _formKey++;
+            ResetForm();
             await Load();
         }
         catch (Exception ex)
