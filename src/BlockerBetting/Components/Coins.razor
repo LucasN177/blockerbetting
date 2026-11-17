@@ -1,0 +1,7 @@
+<span class="bb-coins @Class" style="@Style"><span class="bb-coin"></span>@Fmt.Coins(Value)</span>
+
+@code {
+    [Parameter, EditorRequired] public long Value { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? Style { get; set; }
+}

@@ -1,0 +1,6 @@
+@{ var (label, css) = Fmt.Status(Event); }
+<span class="bb-pill @css">@label</span>
+
+@code {
+    [Parameter, EditorRequired] public BetEvent Event { get; set; } = default!;
+}

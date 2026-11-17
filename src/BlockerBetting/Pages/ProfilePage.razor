@@ -4,19 +4,42 @@
 
 <PageTitle>Profil · BlockerBetting</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Profil</MudText>
+<PageHeader Title="Profil" Eyebrow="Dein Account" />
 
 @if (Betting.CurrentProfile is { } profile)
 {
-    <MudPaper Class="pa-4" Elevation="2" Style="max-width:32rem">
-        <MudText Typo="Typo.body1" Class="mb-4">Guthaben: <b>@profile.Coins.ToString("N0") Coins</b>@(profile.IsAdmin ? " · Admin" : "")</MudText>
-        <MudTextField @bind-Value="_displayName" Label="Anzeigename" MaxLength="40" Variant="Variant.Outlined" Class="mb-3" />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_displayName))" OnClick="Save">Speichern</MudButton>
-    </MudPaper>
+    <MudGrid Spacing="4">
+        <MudItem xs="12" md="5">
+            <div class="bb-card bb-card-pad d-flex flex-column align-center" style="text-align:center">
+                <Avatar Name="@profile.DisplayName" Size="88" />
+                <MudText Typo="Typo.h5" Class="mt-4">@profile.DisplayName</MudText>
+                <span class="bb-pill @(profile.IsAdmin ? "bb-tint-primary" : "bb-pill-neutral") mt-2">@(profile.IsAdmin ? "Admin" : "Spieler")</span>
+                <div class="bb-muted mt-4" style="font-size:0.8rem">Dabei seit @profile.CreatedAt.ToLocalTime().ToString("MMMM yyyy", System.Globalization.CultureInfo.GetCultureInfo("de-DE"))</div>
+                <MudDivider Class="my-5" Style="width:100%" />
+                <div class="bb-stat-label">Guthaben</div>
+                <Coins Value="profile.Coins" Style="font-size:1.8rem; font-weight:800" />
+            </div>
+        </MudItem>
+        <MudItem xs="12" md="7">
+            <div class="bb-card bb-card-pad">
+                <div class="bb-section-title">Anzeigename</div>
+                <MudText Class="bb-muted mb-4" Typo="Typo.body2">So erscheinst du in der Rangliste.</MudText>
+                <form @onsubmit="Save" @onsubmit:preventDefault="true">
+                    <MudTextField @bind-Value="_displayName" Label="Anzeigename" MaxLength="40" Variant="Variant.Outlined" Counter="40" Immediate="true" />
+                    <div class="d-flex justify-end mt-4">
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                                   Disabled="@(_busy || string.IsNullOrWhiteSpace(_displayName) || _displayName.Trim() == profile.DisplayName)">
+                            Speichern
+                        </MudButton>
+                    </div>
+                </form>
+            </div>
+        </MudItem>
+    </MudGrid>
 }
 else
 {
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="300px" Style="border-radius:20px" />
 }
 
 @code {

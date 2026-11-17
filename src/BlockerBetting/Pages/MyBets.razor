@@ -4,55 +4,101 @@
 
 <PageTitle>Meine Wetten · BlockerBetting</PageTitle>
 
-<MudText Typo="Typo.h4" Class="mb-4">Meine Wetten</MudText>
+<PageHeader Title="Meine Wetten" Eyebrow="Übersicht" Subtitle="Alle deine Tipps, Einsätze und Gewinne auf einen Blick." />
 
 @if (_rows is null)
 {
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="320px" Style="border-radius:20px" />
 }
 else
 {
-    <MudGrid Class="mb-4">
-        <MudItem xs="6" md="3"><Stat Label="Wetten" Value="@_rows.Count.ToString("N0")" /></MudItem>
-        <MudItem xs="6" md="3"><Stat Label="Eingesetzt" Value="@_rows.Sum(r => r.Bet.Amount).ToString("N0")" /></MudItem>
-        <MudItem xs="6" md="3"><Stat Label="Ausgezahlt" Value="@_rows.Sum(r => r.Bet.Payout ?? 0).ToString("N0")" /></MudItem>
-        <MudItem xs="6" md="3"><Stat Label="Offen (möglicher Gewinn)" Value="@_rows.Where(r => r.Bet.Payout is null).Sum(r => r.Bet.PotentialPayout).ToString("N0")" /></MudItem>
+    var settled = _rows.Where(r => r.Bet.Payout is not null && r.Status != BetResult.Refunded).ToList();
+    var profit = settled.Sum(r => r.Bet.Payout!.Value - r.Bet.Amount);
+
+    <MudGrid Spacing="3" Class="mb-6">
+        <MudItem xs="12" sm="6" lg="3">
+            <StatCard Label="Tipps gesamt" Icon="@Icons.Material.Rounded.ConfirmationNumber">@_rows.Count</StatCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <StatCard Label="Trefferquote" Icon="@Icons.Material.Rounded.TrackChanges" Tint="info">
+                @(settled.Count == 0 ? "–" : $"{100.0 * settled.Count(r => r.Status == BetResult.Won) / settled.Count:0}%")
+            </StatCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <StatCard Label="Gewinn / Verlust" Icon="@(profit >= 0 ? Icons.Material.Rounded.TrendingUp : Icons.Material.Rounded.TrendingDown)" Tint="@(profit >= 0 ? "success" : "error")">
+                @(profit > 0 ? "+" : "")@Fmt.Coins(profit)
+            </StatCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" lg="3">
+            <StatCard Label="Offen · möglicher Gewinn" Icon="@Icons.Material.Rounded.HourglassTop" Tint="warning">
+                @Fmt.Coins(_rows.Where(r => r.Status == BetResult.Open).Sum(r => r.Bet.PotentialPayout))
+            </StatCard>
+        </MudItem>
     </MudGrid>
 
-    <MudTable Items="_rows" Hover="true" Dense="true" Elevation="2">
-        <HeaderContent>
-            <MudTh>Event</MudTh>
-            <MudTh>Tipp</MudTh>
-            <MudTh Style="text-align:right">Einsatz</MudTh>
-            <MudTh Style="text-align:right">Quote</MudTh>
-            <MudTh Style="text-align:right">Auszahlung</MudTh>
-            <MudTh>Datum</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd DataLabel="Event"><MudLink Href="@($"events/{context.Bet.EventId}")">@context.EventTitle</MudLink></MudTd>
-            <MudTd DataLabel="Tipp">@context.OptionLabel</MudTd>
-            <MudTd DataLabel="Einsatz" Style="text-align:right">@context.Bet.Amount.ToString("N0")</MudTd>
-            <MudTd DataLabel="Quote" Style="text-align:right">@context.Bet.Odds.ToString("0.00")</MudTd>
-            <MudTd DataLabel="Auszahlung" Style="text-align:right">
-                @if (context.Bet.Payout is { } payout)
-                {
-                    <MudText Typo="Typo.body2" Color="@(payout > context.Bet.Amount ? Color.Success : payout == 0 ? Color.Error : Color.Default)">@payout.ToString("N0")</MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">offen (möglich @context.Bet.PotentialPayout.ToString("N0"))</MudText>
-                }
-            </MudTd>
-            <MudTd DataLabel="Datum">@context.Bet.CreatedAt.ToLocalTime().ToString("g")</MudTd>
-        </RowTemplate>
-        <NoRecordsContent>Du hast noch keine Wetten platziert.</NoRecordsContent>
-    </MudTable>
+    <div class="d-flex align-center mb-3">
+        <div class="bb-section-title mb-0">Verlauf</div>
+        <MudSpacer />
+        <MudToggleGroup T="string" @bind-Value="_filter" Size="Size.Small" Outlined="false" Delimiters="false" Class="bb-segment" SelectedClass="bb-segment-selected" CheckMark="false">
+            <MudToggleItem Value="@("all")" Text="Alle" />
+            <MudToggleItem Value="@("open")" Text="Offen" />
+            <MudToggleItem Value="@("settled")" Text="Abgerechnet" />
+        </MudToggleGroup>
+    </div>
+
+    <div class="bb-card">
+        @if (!Visible.Any())
+        {
+            <div class="pa-8 d-flex flex-column align-center" style="text-align:center">
+                <MudText Typo="Typo.h6">Noch keine Tipps</MudText>
+                <MudText Class="bb-muted mt-1">Such dir eine Wette aus und gib deinen ersten Tipp ab.</MudText>
+                <MudButton Href="" Variant="Variant.Filled" Color="Color.Primary" Class="mt-4">Zu den Wetten</MudButton>
+            </div>
+        }
+        @foreach (var row in Visible)
+        {
+            var (label, tint, icon) = Describe(row.Status);
+            <a href="@($"events/{row.Bet.EventId}")" class="bb-list-row bb-list-row-link">
+                <div class="bb-stat-icon bb-tint-@tint" style="width:40px;height:40px;border-radius:12px">
+                    <MudIcon Icon="@icon" Size="Size.Small" />
+                </div>
+                <div class="bb-grow">
+                    <div style="font-weight:600" class="bb-ellipsis">@row.EventTitle</div>
+                    <div class="bb-muted bb-ellipsis" style="font-size:0.8rem">
+                        @row.OptionLabel @@ @Fmt.Odds(row.Bet.Odds) · Einsatz @Fmt.Coins(row.Bet.Amount) · @Fmt.ShortDate(row.Bet.CreatedAt)
+                    </div>
+                </div>
+                <div style="text-align:right">
+                    <Coins Value="@(row.Bet.Payout ?? row.Bet.PotentialPayout)" Style="@(row.Status == BetResult.Lost ? "opacity:0.45" : "")" />
+                    <div><span class="bb-pill bb-tint-@tint" style="margin-top:4px">@label</span></div>
+                </div>
+            </a>
+        }
+    </div>
 }
 
 @code {
-    private record Row(Bet Bet, string EventTitle, string OptionLabel);
+    private enum BetResult { Open, Won, Lost, Refunded }
+
+    private record Row(Bet Bet, string EventTitle, string OptionLabel, BetResult Status);
 
     private List<Row>? _rows;
+    private string _filter = "all";
+
+    private IEnumerable<Row> Visible => (_rows ?? []).Where(r => _filter switch
+    {
+        "open" => r.Status == BetResult.Open,
+        "settled" => r.Status != BetResult.Open,
+        _ => true,
+    });
+
+    private static (string Label, string Tint, string Icon) Describe(BetResult status) => status switch
+    {
+        BetResult.Won => ("Gewonnen", "success", Icons.Material.Rounded.Check),
+        BetResult.Lost => ("Verloren", "error", Icons.Material.Rounded.Close),
+        BetResult.Refunded => ("Erstattet", "warning", Icons.Material.Rounded.Undo),
+        _ => ("Offen", "info", Icons.Material.Rounded.HourglassTop),
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -60,9 +106,21 @@ else
         {
             var bets = await Betting.GetMyBetsAsync();
             var events = await Betting.GetEventsAsync();
-            var titles = events.ToDictionary(e => e.Event.Id, e => e.Event.Title);
+            var byId = events.ToDictionary(e => e.Event.Id);
             var labels = events.SelectMany(e => e.Options).ToDictionary(o => o.Id, o => o.Label);
-            _rows = bets.Select(b => new Row(b, titles.GetValueOrDefault(b.EventId, "?"), labels.GetValueOrDefault(b.OptionId, "?"))).ToList();
+
+            _rows = bets.Select(b =>
+            {
+                byId.TryGetValue(b.EventId, out var ev);
+                var status = b.Payout switch
+                {
+                    null => BetResult.Open,
+                    _ when ev?.Event.Status == EventStatus.Cancelled => BetResult.Refunded,
+                    0 => BetResult.Lost,
+                    _ => BetResult.Won,
+                };
+                return new Row(b, ev?.Event.Title ?? "?", labels.GetValueOrDefault(b.OptionId, "?"), status);
+            }).ToList();
         }
         catch (Exception ex)
         {

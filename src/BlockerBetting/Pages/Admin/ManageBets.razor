@@ -5,13 +5,31 @@
 
 <PageTitle>Wetten verwalten · BlockerBetting</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Wrap="Wrap.Wrap">
-    <MudText Typo="Typo.h4">Wetten verwalten</MudText>
-    <MudSpacer />
-    <MudSwitch @bind-Value="_showClosed" Color="Color.Primary" Label="Abgeschlossene anzeigen" />
-    <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" aria-label="Aktualisieren" />
-    <MudButton Href="admin/bets/new" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Neue Wette</MudButton>
-</MudStack>
+<PageHeader Title="Wetten verwalten" Eyebrow="Admin" Subtitle="Wetten anlegen, Quoten pflegen und Ergebnisse auszahlen.">
+    <Actions>
+        <MudSwitch @bind-Value="_showClosed" Color="Color.Primary" Label="Abgeschlossene" />
+        <MudTooltip Text="Aktualisieren">
+            <MudIconButton Icon="@Icons.Material.Rounded.Refresh" OnClick="Load" />
+        </MudTooltip>
+        <MudButton Href="admin/bets/new" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.Add">Neue Wette</MudButton>
+    </Actions>
+</PageHeader>
+
+@if (_events is not null && Betting.CurrentProfile?.IsAdmin == true)
+{
+    var active = _events.Where(e => e.Event.Status is EventStatus.Open or EventStatus.Locked).ToList();
+    <MudGrid Spacing="3" Class="mb-6">
+        <MudItem xs="12" sm="4">
+            <StatCard Label="Aktive Wetten" Icon="@Icons.Material.Rounded.SportsScore">@active.Count</StatCard>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <StatCard Label="Offene Tipps" Icon="@Icons.Material.Rounded.ConfirmationNumber" Tint="info">@active.Sum(e => e.TotalBets)</StatCard>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <StatCard Label="Offener Einsatz" Icon="@Icons.Material.Rounded.Toll" Tint="warning">@Fmt.Coins(active.Sum(e => e.TotalStake))</StatCard>
+        </MudItem>
+    </MudGrid>
+}
 
 @if (Betting.CurrentProfile?.IsAdmin != true)
 {
@@ -23,7 +41,7 @@ else if (_events is null)
 }
 else
 {
-    <MudTable Items="Visible" Hover="true" Elevation="2" Breakpoint="Breakpoint.Sm" Loading="_busy">
+    <MudTable Items="Visible" Hover="true" Elevation="0" Class="bb-card" Breakpoint="Breakpoint.Sm" Loading="_busy">
         <HeaderContent>
             <MudTh>Wette</MudTh>
             <MudTh>Status</MudTh>
@@ -33,22 +51,27 @@ else
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="Wette">
-                <MudLink Href="@($"events/{context.Event.Id}")"><b>@context.Event.Title</b></MudLink>
-                <MudText Typo="Typo.caption" Class="d-block">
-                    @(context.Event.ClosesAt is { } c ? $"Wettschluss {c.ToLocalTime():g}" : "Kein Wettschluss")
-                </MudText>
+                <MudLink Href="@($"events/{context.Event.Id}")" Color="Color.Inherit" Style="font-weight:700">@context.Event.Title</MudLink>
+                <div class="bb-muted" style="font-size:0.78rem">
+                    @(context.Event.ClosesAt is { } c ? $"Wettschluss {Fmt.Date(c)}" : "Kein Wettschluss")
+                </div>
             </MudTd>
-            <MudTd DataLabel="Status"><EventStatusChip Event="context.Event" /></MudTd>
+            <MudTd DataLabel="Status"><StatusPill Event="context.Event" /></MudTd>
             <MudTd DataLabel="Optionen">
-                @foreach (var option in context.Options)
-                {
-                    <MudText Typo="Typo.body2">
-                        @(context.Event.WinningOptionId == option.Id ? "🏆 " : "")@option.Label:
-                        <b>@option.Odds.ToString("0.00")</b> · @context.StakeFor(option.Id).ToString("N0") Coins (@context.BetsFor(option.Id))
-                    </MudText>
-                }
+                <div class="d-flex flex-wrap gap-1">
+                    @foreach (var option in context.Options)
+                    {
+                        var winner = context.Event.WinningOptionId == option.Id;
+                        <span class="bb-pill @(winner ? "bb-tint-success" : "bb-pill-neutral")" style="padding-left:10px" title="@context.BetsFor(option.Id) Wetten · @Fmt.Coins(context.StakeFor(option.Id)) Coins">
+                            @option.Label <b style="color:var(--mud-palette-text-primary)">@Fmt.Odds(option.Odds)</b>
+                        </span>
+                    }
+                </div>
             </MudTd>
-            <MudTd DataLabel="Gesamt" Style="text-align:right">@context.TotalStake.ToString("N0") Coins<br /><MudText Typo="Typo.caption">@context.TotalBets Wetten</MudText></MudTd>
+            <MudTd DataLabel="Gesamt" Style="text-align:right">
+                <Coins Value="context.TotalStake" />
+                <div class="bb-muted" style="font-size:0.75rem">@context.TotalBets Wetten</div>
+            </MudTd>
             <MudTd DataLabel="Aktionen" Style="text-align:right; white-space:nowrap">
                 @if (context.Event.Status is EventStatus.Open or EventStatus.Locked)
                 {

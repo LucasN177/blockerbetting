@@ -1,0 +1,13 @@
+@implements IDisposable
+@inject ThemeService ThemeService
+
+<MudThemeProvider Theme="ThemeService.Theme" IsDarkMode="ThemeService.IsDarkMode" />
+<MudPopoverProvider />
+<MudDialogProvider MaxWidth="MaxWidth.ExtraSmall" FullWidth="true" />
+<MudSnackbarProvider />
+
+@code {
+    protected override void OnInitialized() => ThemeService.Changed += Refresh;
+    private void Refresh() => InvokeAsync(StateHasChanged);
+    public void Dispose() => ThemeService.Changed -= Refresh;
+}

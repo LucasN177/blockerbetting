@@ -1,20 +1,27 @@
 @implements IDisposable
 @inject BettingService Betting
 
-<div class="nav-drawer-content">
-    <MudNavMenu Class="pt-2">
-        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Casino">Events</MudNavLink>
-        <MudNavLink Href="my-bets" Icon="@Icons.Material.Filled.ReceiptLong">Meine Wetten</MudNavLink>
-        <MudNavLink Href="leaderboard" Icon="@Icons.Material.Filled.EmojiEvents">Rangliste</MudNavLink>
-        <MudNavLink Href="profile" Icon="@Icons.Material.Filled.Person">Profil</MudNavLink>
-        @if (Betting.CurrentProfile?.IsAdmin == true)
-        {
-            <MudDivider Class="my-2" />
-            <MudNavLink Href="admin/bets" Icon="@Icons.Material.Filled.AdminPanelSettings">Wetten verwalten</MudNavLink>
-        }
+<div class="bb-drawer-content">
+    <div class="bb-nav-section" style="padding-top:0.25rem">Spielen</div>
+    <MudNavMenu>
+        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.SportsScore">Wetten</MudNavLink>
+        <MudNavLink Href="my-bets" Icon="@Icons.Material.Rounded.ReceiptLong">Meine Wetten</MudNavLink>
+        <MudNavLink Href="leaderboard" Icon="@Icons.Material.Rounded.EmojiEvents">Rangliste</MudNavLink>
+        <MudNavLink Href="profile" Icon="@Icons.Material.Rounded.Person">Profil</MudNavLink>
     </MudNavMenu>
-    <footer class="nav-footer">
-        v@(AppInfo.Version) · by @AppInfo.Author
+
+    @if (Betting.CurrentProfile?.IsAdmin == true)
+    {
+        <div class="bb-nav-section">Admin</div>
+        <MudNavMenu>
+            <MudNavLink Href="admin/bets" Icon="@Icons.Material.Rounded.Tune">Wetten verwalten</MudNavLink>
+            <MudNavLink Href="admin/bets/new" Icon="@Icons.Material.Rounded.AddCircleOutline">Neue Wette</MudNavLink>
+        </MudNavMenu>
+    }
+
+    <footer class="bb-drawer-footer">
+        <div style="font-weight:600">v@(AppInfo.Version)</div>
+        <div>by @AppInfo.Author</div>
     </footer>
 </div>
 

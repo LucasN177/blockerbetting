@@ -2,58 +2,77 @@
 @inject BettingService Betting
 @inject ISnackbar Snackbar
 
-<PageTitle>Events · BlockerBetting</PageTitle>
+<PageTitle>Wetten · BlockerBetting</PageTitle>
 
-<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudText Typo="Typo.h4">Events</MudText>
-    <MudSpacer />
-    <MudSwitch @bind-Value="_showClosed" Color="Color.Primary" Label="Abgeschlossene anzeigen" />
-    <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" aria-label="Aktualisieren" />
-</MudStack>
+<section class="bb-hero">
+    <div style="position:relative; z-index:1">
+        <div class="bb-hero-stat-label" style="opacity:0.75">@Fmt.Greeting()</div>
+        <h1 class="bb-hero-title">@(Betting.CurrentProfile?.DisplayName ?? "Willkommen")</h1>
+        <div class="bb-hero-sub">Wähle eine Wette, setze deine Coins und klettere in der Rangliste nach oben.</div>
+    </div>
+    <div class="bb-hero-stats">
+        <div>
+            <div class="bb-hero-stat-label">Guthaben</div>
+            <div class="bb-hero-stat-value"><span class="bb-coin"></span>@Fmt.Coins(Betting.CurrentProfile?.Coins ?? 0)</div>
+        </div>
+        <div>
+            <div class="bb-hero-stat-label">Offene Tipps</div>
+            <div class="bb-hero-stat-value">@_openBets.Count</div>
+        </div>
+        <div>
+            <div class="bb-hero-stat-label">Möglicher Gewinn</div>
+            <div class="bb-hero-stat-value"><span class="bb-coin"></span>@Fmt.Coins(_openBets.Sum(b => b.PotentialPayout))</div>
+        </div>
+    </div>
+</section>
+
+<PageHeader Title="Wetten" Eyebrow="Wettangebot">
+    <Actions>
+        <MudToggleGroup T="string" @bind-Value="_filter" Size="Size.Small" Outlined="false" Delimiters="false" Class="bb-segment" SelectedClass="bb-segment-selected" CheckMark="false">
+            <MudToggleItem Value="@("live")" Text="Aktiv" />
+            <MudToggleItem Value="@("done")" Text="Entschieden" />
+            <MudToggleItem Value="@("all")" Text="Alle" />
+        </MudToggleGroup>
+        <MudTooltip Text="Aktualisieren">
+            <MudIconButton Icon="@Icons.Material.Rounded.Refresh" OnClick="Load" />
+        </MudTooltip>
+    </Actions>
+</PageHeader>
 
 @if (_events is null)
 {
-    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+    <MudGrid Spacing="3">
+        @for (var i = 0; i < 3; i++)
+        {
+            <MudItem xs="12" sm="6" lg="4">
+                <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="230px" Style="border-radius:20px" />
+            </MudItem>
+        }
+    </MudGrid>
 }
 else if (!Visible.Any())
 {
-    <MudAlert Severity="Severity.Info">Aktuell gibt es keine Events.</MudAlert>
+    <div class="bb-card bb-card-pad d-flex flex-column align-center" style="padding:3.5rem 1.5rem; text-align:center">
+        <div class="bb-stat-icon bb-tint-primary mb-4" style="width:64px;height:64px;border-radius:18px">
+            <MudIcon Icon="@Icons.Material.Rounded.SportsScore" Size="Size.Large" />
+        </div>
+        <MudText Typo="Typo.h6">Gerade keine Wetten</MudText>
+        <MudText Class="bb-muted mt-1">
+            @(_filter == "live" ? "Sobald ein Admin eine neue Wette anlegt, erscheint sie hier." : "Hier gibt es noch nichts zu sehen.")
+        </MudText>
+        @if (Betting.CurrentProfile?.IsAdmin == true)
+        {
+            <MudButton Href="admin/bets/new" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Rounded.Add" Class="mt-5">Neue Wette anlegen</MudButton>
+        }
+    </div>
 }
 else
 {
-    <MudGrid>
+    <MudGrid Spacing="3">
         @foreach (var ev in Visible)
         {
-            <MudItem xs="12" md="6" lg="4">
-                <MudCard Elevation="2" Style="height:100%">
-                    <MudCardHeader>
-                        <CardHeaderContent>
-                            <MudText Typo="Typo.h6">@ev.Event.Title</MudText>
-                            @if (ev.Event.ClosesAt is { } closes)
-                            {
-                                <MudText Typo="Typo.caption">Wettschluss: @closes.ToLocalTime().ToString("g")</MudText>
-                            }
-                        </CardHeaderContent>
-                        <CardHeaderActions>
-                            <EventStatusChip Event="ev.Event" />
-                        </CardHeaderActions>
-                    </MudCardHeader>
-                    <MudCardContent>
-                        @foreach (var option in ev.Options)
-                        {
-                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-1">
-                                <MudText Typo="Typo.body2">@(ev.Event.WinningOptionId == option.Id ? "🏆 " : "")@option.Label</MudText>
-                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@option.Odds.ToString("0.00")</MudChip>
-                            </MudStack>
-                        }
-                        <MudText Typo="Typo.caption" Class="mt-3 d-block">@ev.TotalBets Wetten · @ev.TotalStake.ToString("N0") Coins gesetzt</MudText>
-                    </MudCardContent>
-                    <MudCardActions>
-                        <MudButton Href="@($"events/{ev.Event.Id}")" Variant="Variant.Text" Color="Color.Primary">
-                            @(ev.Event.AcceptsBets ? "Wetten" : "Details")
-                        </MudButton>
-                    </MudCardActions>
-                </MudCard>
+            <MudItem xs="12" sm="6" lg="4">
+                <EventCard Item="ev" />
             </MudItem>
         }
     </MudGrid>
@@ -61,10 +80,16 @@ else
 
 @code {
     private List<EventOverview>? _events;
-    private bool _showClosed;
+    private List<Bet> _openBets = [];
+    private string _filter = "live";
 
     private IEnumerable<EventOverview> Visible => (_events ?? [])
-        .Where(e => _showClosed || e.Event.Status is EventStatus.Open or EventStatus.Locked)
+        .Where(e => _filter switch
+        {
+            "live" => e.Event.Status is EventStatus.Open or EventStatus.Locked,
+            "done" => e.Event.Status is EventStatus.Resolved or EventStatus.Cancelled,
+            _ => true,
+        })
         .OrderByDescending(e => e.Event.AcceptsBets)
         .ThenBy(e => e.Event.ClosesAt ?? DateTime.MaxValue);
 
@@ -72,7 +97,11 @@ else
 
     private async Task Load()
     {
-        try { _events = await Betting.GetEventsAsync(); }
+        try
+        {
+            _events = await Betting.GetEventsAsync();
+            _openBets = (await Betting.GetMyBetsAsync()).Where(b => b.Payout is null).ToList();
+        }
         catch (Exception ex)
         {
             _events = [];

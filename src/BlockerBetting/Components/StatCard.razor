@@ -1,0 +1,17 @@
+<div class="bb-card bb-stat">
+    <div class="bb-stat-icon bb-tint-@Tint">
+        <MudIcon Icon="@Icon" Size="Size.Medium" />
+    </div>
+    <div class="bb-grow">
+        <div class="bb-stat-label">@Label</div>
+        <div class="bb-stat-value">@ChildContent</div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    /// <summary>primary | success | warning | error | info</summary>
+    [Parameter] public string Tint { get; set; } = "primary";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

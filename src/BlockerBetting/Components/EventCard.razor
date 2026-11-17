@@ -1,0 +1,44 @@
+@inject NavigationManager Nav
+
+<div class="bb-card bb-hover bb-event-card" @onclick="Open">
+    <div class="d-flex align-center justify-space-between gap-2">
+        <StatusPill Event="Item.Event" />
+        @if (Fmt.TimeLeft(Item.Event.ClosesAt) is { } left && Item.Event.AcceptsBets)
+        {
+            <span class="bb-muted d-flex align-center gap-1" style="font-size:0.78rem">
+                <MudIcon Icon="@Icons.Material.Outlined.Schedule" Style="font-size:1rem" /> @left
+            </span>
+        }
+    </div>
+
+    <div class="bb-event-title">@Item.Event.Title</div>
+    @if (!string.IsNullOrWhiteSpace(Item.Event.Description))
+    {
+        <div class="bb-muted bb-clamp-2" style="font-size:0.88rem">@Item.Event.Description</div>
+    }
+
+    <div class="bb-odds-grid">
+        @foreach (var option in Item.Options)
+        {
+            var winner = Item.Event.WinningOptionId == option.Id;
+            <button class="bb-odds @(winner ? "bb-odds-winner" : "")" disabled="@(!Item.Event.AcceptsBets)"
+                    @onclick="() => Pick(option.Id)" @onclick:stopPropagation="true">
+                <span class="bb-odds-label">@(winner ? "🏆 " : "")@option.Label</span>
+                <span class="bb-odds-value">@Fmt.Odds(option.Odds)</span>
+            </button>
+        }
+    </div>
+
+    <div class="bb-event-footer">
+        <span class="d-flex align-center gap-1"><MudIcon Icon="@Icons.Material.Outlined.People" Style="font-size:1rem" /> @Item.TotalBets Wetten</span>
+        <Coins Value="Item.TotalStake" Style="font-weight:600" />
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public EventOverview Item { get; set; } = default!;
+
+    private void Open() => Nav.NavigateTo($"events/{Item.Event.Id}");
+
+    private void Pick(Guid optionId) => Nav.NavigateTo($"events/{Item.Event.Id}?option={optionId}");
+}

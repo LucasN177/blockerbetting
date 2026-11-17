@@ -6,8 +6,9 @@
 
 <PageTitle>@(IsNew ? "Neue Wette" : "Wette bearbeiten") · BlockerBetting</PageTitle>
 
-<MudButton Href="admin/bets" StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" Class="mb-2">Wetten verwalten</MudButton>
-<MudText Typo="Typo.h4" Class="mb-4">@(IsNew ? "Neue Wette" : "Wette bearbeiten")</MudText>
+<MudButton Href="admin/bets" StartIcon="@Icons.Material.Rounded.ArrowBack" Variant="Variant.Text" Color="Color.Default" Size="Size.Small" Class="mb-4">Wetten verwalten</MudButton>
+<PageHeader Title="@(IsNew ? "Neue Wette" : "Wette bearbeiten")" Eyebrow="Admin"
+            Subtitle="Auszahlung bei Gewinn = Einsatz × Quote. Quotenänderungen gelten nur für neue Tipps." />
 
 @if (Betting.CurrentProfile?.IsAdmin != true)
 {
@@ -23,20 +24,19 @@ else if (_readOnlyReason is not null)
 }
 else
 {
-    <MudPaper Class="pa-4" Elevation="2" Style="max-width:56rem">
+    <div class="bb-card bb-card-pad" style="max-width:56rem">
         <MudForm @ref="_form">
-            <MudTextField @bind-Value="_title" Label="Titel" Required="true" RequiredError="Titel fehlt" MaxLength="200" Variant="Variant.Outlined" Class="mb-3" />
-            <MudTextField @bind-Value="_description" Label="Beschreibung / Regeln (optional)" Lines="3" Variant="Variant.Outlined" Class="mb-3" />
+            <div class="bb-section-title">Allgemein</div>
+            <MudTextField @bind-Value="_title" Label="Titel" Required="true" RequiredError="Titel fehlt" MaxLength="200" Variant="Variant.Outlined" Class="mb-4" />
+            <MudTextField @bind-Value="_description" Label="Beschreibung / Regeln (optional)" Lines="3" Variant="Variant.Outlined" Class="mb-4" />
 
-            <MudStack Row="true" Spacing="2" Class="mb-4">
+            <MudStack Row="true" Spacing="3" Class="mb-6">
                 <MudDatePicker @bind-Date="_closesDate" Label="Wettschluss – Datum (optional)" Variant="Variant.Outlined" Clearable="true" />
                 <MudTimePicker @bind-Time="_closesTime" Label="Uhrzeit" Variant="Variant.Outlined" />
             </MudStack>
 
-            <MudText Typo="Typo.subtitle1">Optionen & Quoten</MudText>
-            <MudText Typo="Typo.caption" Class="mb-3 d-block">
-                Auszahlung bei Gewinn = Einsatz × Quote. Quotenänderungen gelten nur für neue Wetten – bereits abgegebene Wetten behalten ihre Quote.
-            </MudText>
+            <MudDivider Class="mb-6" />
+            <div class="bb-section-title">Optionen & Quoten</div>
 
             @foreach (var option in _options)
             {
@@ -50,15 +50,15 @@ else
                     </MudTooltip>
                 </MudStack>
             }
-            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" OnClick="@(() => _options.Add(new OptionRow { Odds = 2.00m }))" Class="mb-4">Option hinzufügen</MudButton>
+            <MudButton StartIcon="@Icons.Material.Rounded.Add" Variant="Variant.Outlined" Color="Color.Primary" OnClick="@(() => _options.Add(new OptionRow { Odds = 2.00m }))" Class="mb-4">Option hinzufügen</MudButton>
 
-            <MudDivider Class="mb-4" />
-            <MudStack Row="true" Spacing="2">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="Save">@(IsNew ? "Wette anlegen" : "Speichern")</MudButton>
-                <MudButton Href="admin/bets" Variant="Variant.Text">Abbrechen</MudButton>
+            <MudDivider Class="mb-5" />
+            <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd">
+                <MudButton Href="admin/bets" Variant="Variant.Text" Color="Color.Default">Abbrechen</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="Save" StartIcon="@Icons.Material.Rounded.Check">@(IsNew ? "Wette anlegen" : "Speichern")</MudButton>
             </MudStack>
         </MudForm>
-    </MudPaper>
+    </div>
 }
 
 @code {

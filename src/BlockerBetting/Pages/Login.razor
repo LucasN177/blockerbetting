@@ -3,37 +3,87 @@
 @inject BettingService Betting
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject ThemeService ThemeService
+@layout AuthLayout
+@implements IDisposable
 
 <PageTitle>Anmelden · BlockerBetting</PageTitle>
 
-<MudGrid Justify="Justify.Center" Class="mt-8">
-    <MudItem xs="12" sm="8" md="5">
-        <MudPaper Elevation="3" Class="pa-6">
-            <div style="text-align:center"><img src="favicon.svg" alt="" width="72" height="72" style="border-radius:18px" /></div>
-            <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">BlockerBetting</MudText>
-            <MudText Typo="Typo.body2" Align="Align.Center" Class="mb-4">Interne Wettplattform – nur virtuelle Coins.</MudText>
+<div class="bb-auth">
+    <section class="bb-auth-hero">
+        <div class="bb-brand" style="position:relative; z-index:1">
+            <img src="favicon.svg" alt="" />
+            <span class="bb-brand-name">BlockerBetting</span>
+        </div>
 
-            <MudTabs @bind-ActivePanelIndex="_tab" Centered="true" Elevation="0">
-                <MudTabPanel Text="Anmelden">
-                    <MudForm @ref="_loginForm" Class="mt-4">
-                        <MudTextField @bind-Value="_email" Label="E-Mail" InputType="InputType.Email" Required="true" Variant="Variant.Outlined" Class="mb-3" />
-                        <MudTextField @bind-Value="_password" Label="Passwort" InputType="InputType.Password" Required="true" Variant="Variant.Outlined" Class="mb-4" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Disabled="_busy" OnClick="SignIn">Anmelden</MudButton>
+        <div style="position:relative; z-index:1">
+            <h1 class="bb-auth-headline">Tippe mit. Gewinne Coins. Hol dir Platz 1.</h1>
+            <div style="opacity:0.8; max-width:42ch">Die interne Wettplattform fürs Team – gespielt wird ausschließlich mit virtuellen Coins.</div>
+            <div class="bb-auth-hero-features mt-6">
+                <div class="bb-auth-feature"><MudIcon Icon="@Icons.Material.Rounded.Toll" /> 1.000 Start-Coins für jeden</div>
+                <div class="bb-auth-feature"><MudIcon Icon="@Icons.Material.Rounded.TrendingUp" /> Feste Quoten, transparent berechnet</div>
+                <div class="bb-auth-feature"><MudIcon Icon="@Icons.Material.Rounded.EmojiEvents" /> Live-Rangliste aller Spieler</div>
+            </div>
+        </div>
+
+        <div class="bb-auth-hero-features" style="position:relative; z-index:1; font-size:0.8rem; opacity:0.6">
+            v@(AppInfo.Version) · by @AppInfo.Author
+        </div>
+    </section>
+
+    <section class="bb-auth-form-wrap">
+        <div class="bb-auth-form">
+            <div class="d-flex justify-end mb-6">
+                <MudIconButton Icon="@(ThemeService.IsDarkMode ? Icons.Material.Rounded.LightMode : Icons.Material.Rounded.DarkMode)"
+                               OnClick="ThemeService.Toggle" aria-label="Design wechseln" />
+            </div>
+
+            <MudText Typo="Typo.h4">@(_tab == 0 ? "Willkommen zurück" : "Account erstellen")</MudText>
+            <MudText Class="bb-muted mt-1 mb-6">
+                @(_tab == 0 ? "Melde dich an, um weiterzuwetten." : "In wenigen Sekunden startklar – mit 1.000 Coins.")
+            </MudText>
+
+            <MudToggleGroup T="int" @bind-Value="_tab" Outlined="false" Delimiters="false" Class="bb-segment mb-6" SelectedClass="bb-segment-selected" Style="width:100%" CheckMark="false">
+                <MudToggleItem Value="0" Text="Anmelden" />
+                <MudToggleItem Value="1" Text="Registrieren" />
+            </MudToggleGroup>
+
+            @if (_tab == 0)
+            {
+                    <MudForm @ref="_loginForm" @onsubmit="SignIn">
+                        <MudTextField @bind-Value="_email" Label="E-Mail" InputType="InputType.Email" Required="true" RequiredError="E-Mail fehlt" Immediate="true"
+                                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Email" Class="mb-4" />
+                        <MudTextField @bind-Value="_password" Immediate="true" Label="Passwort" InputType="@(_showPassword ? InputType.Text : InputType.Password)" Required="true" RequiredError="Passwort fehlt"
+                                      Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                                      OnAdornmentClick="@(() => _showPassword = !_showPassword)" AdornmentAriaLabel="Passwort anzeigen" Class="mb-6" />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Disabled="_busy" Class="bb-cta">
+                            @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Style="color:inherit" /> }
+                            Anmelden
+                        </MudButton>
                     </MudForm>
-                </MudTabPanel>
-                <MudTabPanel Text="Registrieren">
-                    <MudForm @ref="_registerForm" Class="mt-4">
-                        <MudTextField @bind-Value="_displayName" Label="Anzeigename" Required="true" MaxLength="40" Variant="Variant.Outlined" Class="mb-3" />
-                        <MudTextField @bind-Value="_email" Label="E-Mail" InputType="InputType.Email" Required="true" Variant="Variant.Outlined" Class="mb-3" />
-                        <MudTextField @bind-Value="_password" Label="Passwort (min. 6 Zeichen)" InputType="InputType.Password" Required="true" Variant="Variant.Outlined" Class="mb-4"
-                                      Validation="@(new Func<string, string?>(ValidatePassword))" />
-                        <MudButton Variant="Variant.Filled" Color="Color.Secondary" FullWidth="true" Disabled="_busy" OnClick="SignUp">Account erstellen</MudButton>
+            }
+            else
+            {
+                    <MudForm @ref="_registerForm" @onsubmit="SignUp">
+                        <MudTextField @bind-Value="_displayName" Immediate="true" Label="Anzeigename" Required="true" RequiredError="Anzeigename fehlt" MaxLength="40"
+                                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Badge" Class="mb-4" />
+                        <MudTextField @bind-Value="_email" Label="E-Mail" InputType="InputType.Email" Required="true" RequiredError="E-Mail fehlt" Immediate="true"
+                                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Email" Class="mb-4" />
+                        <MudTextField @bind-Value="_password" Immediate="true" Label="Passwort" HelperText="Mindestens 6 Zeichen" InputType="@(_showPassword ? InputType.Text : InputType.Password)" Required="true"
+                                      Validation="@(new Func<string, string?>(ValidatePassword))"
+                                      Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                                      OnAdornmentClick="@(() => _showPassword = !_showPassword)" AdornmentAriaLabel="Passwort anzeigen" Class="mb-6" />
+                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Disabled="_busy" Class="bb-cta">
+                            @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Style="color:inherit" /> }
+                            Account erstellen
+                        </MudButton>
                     </MudForm>
-                </MudTabPanel>
-            </MudTabs>
-        </MudPaper>
-    </MudItem>
-</MudGrid>
+            }
+
+            <div class="bb-auth-footer">v@(AppInfo.Version) · by @AppInfo.Author</div>
+        </div>
+    </section>
+</div>
 
 @code {
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
@@ -97,4 +147,15 @@
         var safe = !string.IsNullOrEmpty(ReturnUrl) && !ReturnUrl.StartsWith("login") && !ReturnUrl.Contains(':') && !ReturnUrl.StartsWith("/");
         Nav.NavigateTo(safe ? ReturnUrl! : "", replace: true);
     }
+
+    private bool _showPassword;
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender) ThemeService.Changed += Refresh;
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => ThemeService.Changed -= Refresh;
 }
