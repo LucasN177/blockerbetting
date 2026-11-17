@@ -18,6 +18,8 @@ Interne Wettplattform für das Team: Jede Person hat einen eigenen Account, star
 | Quoten | **Feste Quoten**, die Admins pro Option manuell festlegen. Jede Wette speichert die Quote zum Zeitpunkt der Abgabe; spätere Quotenänderungen gelten nur für neue Wetten. Gewinn = `Einsatz × Quote` (abgerundet). |
 | Rangliste | Leaderboard aller Spieler nach Coins. |
 | Admin | Menüpunkt **„Wetten verwalten“**: Wetten mit Optionen & Quoten anlegen und bearbeiten, schließen/wieder öffnen, Gewinner festlegen und auszahlen oder abbrechen (Abbruch = Rückerstattung). |
+| Wett-Anfragen | Jeder Spieler kann unter **„Wette vorschlagen“** eine Wette mit Optionen, Quoten-Vorschlag und Wettschluss einreichen. Admins prüfen sie unter **„Anfragen“**, passen sie bei Bedarf an und genehmigen oder lehnen sie (mit Begründung) ab. |
+| Ersteller-Recht | Der Ersteller einer Wette – bei genehmigten Anfragen der Antragsteller – darf sie **nach dem Wettschluss** selbst auflösen und auszahlen. Admins können jederzeit auflösen. |
 
 ## Architektur
 
@@ -40,10 +42,20 @@ Die App ist rein statisch – es gibt keinen eigenen Server. Sämtliche Geschäf
 - Nach Wettschluss bzw. solange ein Admin die Wette geschlossen hat, sind keine Wetten mehr möglich.
 - Auszahlung bei Gewinn: `Einsatz × Quote bei Abgabe` (abgerundet). Verlorene Einsätze verfallen.
 - Abgebrochene Events werden vollständig erstattet.
+- Vorgeschlagene Wetten gehen erst nach Freigabe durch einen Admin online. Der Antragsteller entscheidet sie nach dem Wettschluss.
+
+## Datenbank-Migrationen
+
+Die SQL-Dateien in [`supabase/migrations/`](supabase/migrations/) werden im Supabase SQL Editor **in numerischer Reihenfolge** ausgeführt; bei Updates nur die neuen:
+
+| Datei | Inhalt |
+|---|---|
+| `001_initial.sql` | Grundschema, RLS, Profile-Trigger |
+| `002_fixed_odds.sql` | Feste Quoten |
+| `003_bet_requests.sql` | Wett-Anfragen, Auflösen durch den Ersteller |
 
 ## Roadmap / Ideen
 
 - Realtime-Updates über Supabase Realtime
 - Wöchentlicher Coin-Bonus / Mindestguthaben
-- Events von allen Usern vorschlagen lassen (mit Admin-Freigabe)
 - Statistiken & Historie pro Spieler

@@ -1,0 +1,116 @@
+@page "/admin/requests"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+<PageTitle>Anfragen · BlockerBetting</PageTitle>
+
+<PageHeader Title="Wett-Anfragen" Eyebrow="Admin" Subtitle="Vorschläge der Spieler prüfen, anpassen und freischalten.">
+    <Actions>
+        <MudToggleGroup T="string" @bind-Value="_filter" Size="Size.Small" Outlined="false" Delimiters="false" Class="bb-segment" SelectedClass="bb-segment-selected" CheckMark="false">
+            <MudToggleItem Value="@("pending")" Text="Offen" />
+            <MudToggleItem Value="@("all")" Text="Alle" />
+        </MudToggleGroup>
+        <MudTooltip Text="Aktualisieren">
+            <MudIconButton Icon="@Icons.Material.Rounded.Refresh" OnClick="Load" />
+        </MudTooltip>
+    </Actions>
+</PageHeader>
+
+@if (Betting.CurrentProfile?.IsAdmin != true)
+{
+    <MudAlert Severity="Severity.Warning">Nur Admins können Anfragen bearbeiten.</MudAlert>
+}
+else if (_requests is null)
+{
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="260px" Style="border-radius:20px" />
+}
+else if (!Visible.Any())
+{
+    <div class="bb-card bb-card-pad d-flex flex-column align-center" style="padding:3rem 1.5rem; text-align:center">
+        <div class="bb-stat-icon bb-tint-success mb-4" style="width:56px;height:56px;border-radius:16px">
+            <MudIcon Icon="@Icons.Material.Rounded.DoneAll" />
+        </div>
+        <MudText Typo="Typo.h6">Alles erledigt</MudText>
+        <MudText Class="bb-muted mt-1">@(_filter == "pending" ? "Es gibt keine offenen Anfragen." : "Es wurden noch keine Wetten vorgeschlagen.")</MudText>
+    </div>
+}
+else
+{
+    <MudGrid Spacing="3">
+        @foreach (var request in Visible)
+        {
+            var (label, css) = Fmt.Status(request);
+            <MudItem xs="12" md="6" lg="4">
+                <div class="bb-card bb-event-card @(request.Status == RequestStatus.Pending ? "bb-hover" : "")" style="cursor:default">
+                    <div class="d-flex align-center justify-space-between gap-2">
+                        <span class="bb-pill @css">@label</span>
+                        <span class="bb-muted" style="font-size:0.78rem">@Fmt.ShortDate(request.CreatedAt)</span>
+                    </div>
+                    <div class="bb-event-title">@request.Title</div>
+                    @if (!string.IsNullOrWhiteSpace(request.Description))
+                    {
+                        <div class="bb-muted bb-clamp-2" style="font-size:0.88rem">@request.Description</div>
+                    }
+                    <div class="bb-odds-grid">
+                        @foreach (var option in request.Options)
+                        {
+                            <div class="bb-odds" style="cursor:default">
+                                <span class="bb-odds-label">@option.Label</span>
+                                <span class="bb-odds-value">@Fmt.Odds(option.Odds)</span>
+                            </div>
+                        }
+                    </div>
+                    <div class="bb-event-footer">
+                        <span class="d-flex align-center gap-2">
+                            <Avatar Name="@Name(request.RequestedBy)" Size="24" /> @Name(request.RequestedBy)
+                        </span>
+                        <span class="d-flex align-center gap-1"><MudIcon Icon="@Icons.Material.Outlined.Schedule" Style="font-size:1rem" /> @Fmt.ShortDate(request.ClosesAt)</span>
+                    </div>
+                    @if (request.Status == RequestStatus.Pending)
+                    {
+                        <MudButton Href="@($"admin/requests/{request.Id}")" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-4"
+                                   StartIcon="@Icons.Material.Rounded.FactCheck">Prüfen</MudButton>
+                    }
+                    else if (request.Status == RequestStatus.Approved && request.EventId is { } eventId)
+                    {
+                        <MudButton Href="@($"events/{eventId}")" Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Class="mt-4">Zur Wette</MudButton>
+                    }
+                    else if (request.Status == RequestStatus.Rejected && !string.IsNullOrWhiteSpace(request.AdminNote))
+                    {
+                        <div class="bb-muted mt-3" style="font-size:0.8rem"><b>Begründung:</b> @request.AdminNote</div>
+                    }
+                </div>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@code {
+    private List<BetRequest>? _requests;
+    private Dictionary<Guid, string> _names = [];
+    private string _filter = "pending";
+
+    private IEnumerable<BetRequest> Visible => (_requests ?? [])
+        .Where(r => _filter == "all" || r.Status == RequestStatus.Pending)
+        .OrderByDescending(r => r.Status == RequestStatus.Pending)
+        .ThenBy(r => r.Status == RequestStatus.Pending ? r.CreatedAt : DateTime.MaxValue)
+        .ThenByDescending(r => r.CreatedAt);
+
+    private string Name(Guid userId) => _names.GetValueOrDefault(userId, "Unbekannt");
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        try
+        {
+            _requests = await Betting.GetAllBetRequestsAsync();
+            _names = await Betting.GetDisplayNamesAsync();
+        }
+        catch (Exception ex)
+        {
+            _requests = [];
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+    }
+}

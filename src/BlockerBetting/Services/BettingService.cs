@@ -193,6 +193,86 @@ public class BettingService(Supabase.Client client)
         await RefreshProfileAsync();
     }
 
+    /// <summary>
+    /// Mirrors the database rule (can_resolve_event): admins always, the creator once the deadline has passed.
+    /// The server enforces it; this only decides what the UI offers.
+    /// </summary>
+    public bool CanResolve(BetEvent ev) =>
+        ev.Status is EventStatus.Open or EventStatus.Locked
+        && (CurrentProfile?.IsAdmin == true
+            || (ev.CreatedBy == CurrentUserId && ev.ClosesAt is { } closes && closes <= DateTime.UtcNow));
+
+    public bool IsCreator(BetEvent ev) => ev.CreatedBy is not null && ev.CreatedBy == CurrentUserId;
+
+    // ---------- Bet requests ----------
+
+    /// <summary>Raised when requests were submitted, approved, rejected or withdrawn (e.g. for the admin badge).</summary>
+    public event Action? RequestsChanged;
+
+    public async Task SubmitBetRequestAsync(string title, string? description, DateTime closesAtUtc, IEnumerable<OptionInput> options)
+    {
+        await client.Rpc("submit_bet_request", new Dictionary<string, object?>
+        {
+            ["p_title"] = title,
+            ["p_description"] = description,
+            ["p_closes_at"] = closesAtUtc,
+            ["p_options"] = ToJson(options),
+        });
+        RequestsChanged?.Invoke();
+    }
+
+    public async Task WithdrawBetRequestAsync(Guid requestId)
+    {
+        await client.Rpc("withdraw_bet_request", new Dictionary<string, object> { ["p_request_id"] = requestId });
+        RequestsChanged?.Invoke();
+    }
+
+    public async Task<List<BetRequest>> GetMyBetRequestsAsync()
+    {
+        var uid = CurrentUserId;
+        if (uid is null) return [];
+        return (await client.From<BetRequest>()
+            .Filter("requested_by", Operator.Equals, uid.ToString())
+            .Order("created_at", Ordering.Descending)
+            .Get()).Models;
+    }
+
+    /// <summary>All requests (admins only – RLS returns just the own ones for players).</summary>
+    public async Task<List<BetRequest>> GetAllBetRequestsAsync() =>
+        (await client.From<BetRequest>().Order("created_at", Ordering.Descending).Get()).Models;
+
+    public async Task<BetRequest?> GetBetRequestAsync(Guid requestId) =>
+        await client.From<BetRequest>().Filter("id", Operator.Equals, requestId.ToString()).Single();
+
+    public async Task<int> CountPendingBetRequestsAsync() =>
+        (await client.From<BetRequest>().Filter("status", Operator.Equals, RequestStatus.Pending).Get()).Models.Count;
+
+    public async Task<Dictionary<Guid, string>> GetDisplayNamesAsync() =>
+        (await client.From<Profile>().Get()).Models.ToDictionary(p => p.Id, p => p.DisplayName);
+
+    public async Task<Guid> ApproveBetRequestAsync(Guid requestId, string title, string? description, DateTime closesAtUtc, IEnumerable<OptionInput> options)
+    {
+        var response = await client.Rpc("approve_bet_request", new Dictionary<string, object?>
+        {
+            ["p_request_id"] = requestId,
+            ["p_title"] = title,
+            ["p_description"] = description,
+            ["p_closes_at"] = closesAtUtc,
+            ["p_options"] = ToJson(options),
+        });
+        RequestsChanged?.Invoke();
+        return Guid.Parse(response.Content!.Trim().Trim('"'));
+    }
+
+    public async Task RejectBetRequestAsync(Guid requestId, string? note)
+    {
+        await client.Rpc("reject_bet_request", new Dictionary<string, object?>
+        {
+            ["p_request_id"] = requestId, ["p_note"] = note,
+        });
+        RequestsChanged?.Invoke();
+    }
+
     /// <summary>Turns Supabase/Postgrest errors into a readable message.</summary>
     public static string ErrorMessage(Exception ex)
     {

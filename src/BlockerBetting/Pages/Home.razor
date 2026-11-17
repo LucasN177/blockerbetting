@@ -26,6 +26,18 @@
     </div>
 </section>
 
+@foreach (var mine in ToDecide)
+{
+    <a href="@($"events/{mine.Event.Id}")" class="bb-card bb-hover d-flex align-center gap-3 pa-4 mb-4" style="text-decoration:none; color:inherit; border-color:rgba(var(--mud-palette-success-rgb),0.45)">
+        <div class="bb-stat-icon bb-tint-success"><MudIcon Icon="@Icons.Material.Rounded.Gavel" /></div>
+        <div class="bb-grow">
+            <div style="font-weight:700">Deine Wette wartet auf ein Ergebnis</div>
+            <div class="bb-muted bb-ellipsis" style="font-size:0.85rem">„@mine.Event.Title“ ist abgelaufen – lege jetzt fest, wer gewonnen hat.</div>
+        </div>
+        <MudIcon Icon="@Icons.Material.Rounded.ChevronRight" />
+    </a>
+}
+
 <PageHeader Title="Wetten" Eyebrow="Wettangebot">
     <Actions>
         <MudToggleGroup T="string" @bind-Value="_filter" Size="Size.Small" Outlined="false" Delimiters="false" Class="bb-segment" SelectedClass="bb-segment-selected" CheckMark="false">
@@ -81,6 +93,11 @@ else
 @code {
     private List<EventOverview>? _events;
     private List<Bet> _openBets = [];
+
+    /// <summary>Bets created by the current user whose deadline has passed and which still need a result.</summary>
+    private IEnumerable<EventOverview> ToDecide => (_events ?? [])
+        .Where(e => Betting.IsCreator(e.Event) && Betting.CanResolve(e.Event)
+                    && e.Event.ClosesAt is { } closes && closes <= DateTime.UtcNow);
     private string _filter = "live";
 
     private IEnumerable<EventOverview> Visible => (_events ?? [])
