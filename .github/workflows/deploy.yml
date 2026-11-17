@@ -16,6 +16,9 @@ concurrency:
 
 env:
   PROJECT_DIR: src/BlockerBetting
+  # The app is served from the root of a custom subdomain.
+  # Without a custom domain (https://<user>.github.io/<repo>/) this must be "/<repo>/".
+  BASE_PATH: /
 
 jobs:
   build:
@@ -42,12 +45,11 @@ jobs:
       # Patch index.html before publishing so the service-worker integrity hashes match.
       - name: Set base href and version in index.html
         run: |
-          REPO_NAME="${GITHUB_REPOSITORY#*/}"
           VERSION="$(dotnet msbuild "$PROJECT_DIR" -getProperty:Version)"
           INDEX="$PROJECT_DIR/wwwroot/index.html"
-          sed -i "s|<base href=\"/\" />|<base href=\"/${REPO_NAME}/\" />|" "$INDEX"
+          sed -i "s|<base href=\"/\" />|<base href=\"${BASE_PATH}\" />|" "$INDEX"
           sed -i "s|<meta name=\"app-version\" content=\"dev\" />|<meta name=\"app-version\" content=\"${VERSION}\" />|" "$INDEX"
-          grep -q "<base href=\"/${REPO_NAME}/\" />" "$INDEX"
+          grep -q "<base href=\"${BASE_PATH}\" />" "$INDEX"
           grep -q "<meta name=\"app-version\" content=\"${VERSION}\" />" "$INDEX"
           echo "Version: ${VERSION}"
 
