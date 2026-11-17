@@ -6,6 +6,7 @@
     <MudNavMenu>
         <MudNavLink Href="./" Match="NavLinkMatch.All" Icon="@Icons.Material.Rounded.SportsScore">Wetten</MudNavLink>
         <MudNavLink Href="my-bets" Icon="@Icons.Material.Rounded.ReceiptLong">Meine Wetten</MudNavLink>
+        <MudNavLink Href="requests" Icon="@Icons.Material.Rounded.Lightbulb">Wette vorschlagen</MudNavLink>
         <MudNavLink Href="leaderboard" Icon="@Icons.Material.Rounded.EmojiEvents">Rangliste</MudNavLink>
         <MudNavLink Href="profile" Icon="@Icons.Material.Rounded.Person">Profil</MudNavLink>
     </MudNavMenu>
@@ -14,6 +15,15 @@
     {
         <div class="bb-nav-section">Admin</div>
         <MudNavMenu>
+            <MudNavLink Href="admin/requests" Icon="@Icons.Material.Rounded.FactCheck">
+                <span class="d-flex align-center justify-space-between" style="width:100%">
+                    Anfragen
+                    @if (_pending > 0)
+                    {
+                        <span class="bb-pill bb-tint-warning" style="padding:1px 8px">@_pending</span>
+                    }
+                </span>
+            </MudNavLink>
             <MudNavLink Href="admin/bets" Icon="@Icons.Material.Rounded.Tune">Wetten verwalten</MudNavLink>
             <MudNavLink Href="admin/bets/new" Icon="@Icons.Material.Rounded.AddCircleOutline">Neue Wette</MudNavLink>
         </MudNavMenu>
@@ -26,7 +36,29 @@
 </div>
 
 @code {
-    protected override void OnInitialized() => Betting.ProfileChanged += Refresh;
-    private void Refresh() => InvokeAsync(StateHasChanged);
-    public void Dispose() => Betting.ProfileChanged -= Refresh;
+    private int _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Betting.ProfileChanged += OnProfileChanged;
+        Betting.RequestsChanged += OnRequestsChanged;
+        await LoadPending();
+    }
+
+    private async Task LoadPending()
+    {
+        if (Betting.CurrentProfile?.IsAdmin != true) { _pending = 0; return; }
+        try { _pending = await Betting.CountPendingBetRequestsAsync(); }
+        catch { /* badge is optional */ }
+    }
+
+    private void OnProfileChanged() => InvokeAsync(async () => { await LoadPending(); StateHasChanged(); });
+
+    private void OnRequestsChanged() => InvokeAsync(async () => { await LoadPending(); StateHasChanged(); });
+
+    public void Dispose()
+    {
+        Betting.ProfileChanged -= OnProfileChanged;
+        Betting.RequestsChanged -= OnRequestsChanged;
+    }
 }

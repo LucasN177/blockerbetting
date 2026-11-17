@@ -1,6 +1,7 @@
 @page "/events/{Id:guid}"
 @inject BettingService Betting
 @inject ISnackbar Snackbar
+@inject IDialogService Dialogs
 
 <PageTitle>@(_event?.Event.Title ?? "Wette") · BlockerBetting</PageTitle>
 
@@ -96,6 +97,36 @@ else
         </MudItem>
 
         <MudItem xs="12" md="5">
+            @if (Betting.CanResolve(ev.Event))
+            {
+                <div class="bb-card bb-card-pad mb-4" style="border-color:rgba(var(--mud-palette-success-rgb),0.45)">
+                    <div class="d-flex align-center gap-3 mb-3">
+                        <div class="bb-stat-icon bb-tint-success"><MudIcon Icon="@Icons.Material.Rounded.Gavel" /></div>
+                        <div>
+                            <div style="font-weight:700">Ergebnis festlegen</div>
+                            <div class="bb-muted" style="font-size:0.8rem">
+                                @(Betting.IsCreator(ev.Event) ? "Du hast diese Wette erstellt – entscheide sie und zahle die Gewinne aus." : "Als Admin kannst du diese Wette auflösen.")
+                            </div>
+                        </div>
+                    </div>
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" FullWidth="true" Disabled="_busy" OnClick="Resolve"
+                               StartIcon="@Icons.Material.Rounded.EmojiEvents">Auflösen & auszahlen</MudButton>
+                </div>
+            }
+            else if (Betting.IsCreator(ev.Event) && ev.Event.Status is EventStatus.Open or EventStatus.Locked)
+            {
+                <div class="bb-card bb-card-pad mb-4 d-flex align-start gap-3">
+                    <div class="bb-stat-icon bb-tint-primary"><MudIcon Icon="@Icons.Material.Rounded.Gavel" /></div>
+                    <div style="font-size:0.85rem">
+                        <b>Du hast diese Wette erstellt.</b><br />
+                        <span class="bb-muted">
+                            @(ev.Event.ClosesAt is { } until
+                                ? $"Nach dem Wettschluss ({Fmt.Date(until)}) kannst du hier das Ergebnis festlegen und auszahlen."
+                                : "Ohne Wettschluss kann nur ein Admin das Ergebnis festlegen.")
+                        </span>
+                    </div>
+                </div>
+            }
             <div class="bb-card bb-slip">
                 <div class="bb-slip-head">
                     <MudIcon Icon="@Icons.Material.Rounded.ConfirmationNumber" Color="Color.Primary" />
@@ -211,6 +242,30 @@ else
         _ when _event?.Event.Status == EventStatus.Cancelled => Icons.Material.Rounded.Undo,
         _ => Icons.Material.Rounded.Check,
     };
+
+    private async Task Resolve()
+    {
+        var parameters = new DialogParameters<ResolveDialog> { { d => d.Event, _event! } };
+        var dialog = await Dialogs.ShowAsync<ResolveDialog>($"„{_event!.Event.Title}“ auflösen", parameters);
+        var result = await dialog.Result;
+        if (result is not { Canceled: false, Data: Guid winner }) return;
+
+        _busy = true;
+        try
+        {
+            await Betting.ResolveEventAsync(Id, winner);
+            Snackbar.Add($"Aufgelöst: „{OptionLabel(winner)}“ hat gewonnen, Gewinne wurden ausgezahlt.", Severity.Success);
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
 
     private async Task PlaceBet()
     {

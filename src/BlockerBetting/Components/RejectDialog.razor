@@ -1,0 +1,16 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Class="mb-3">Der Vorschlag wird abgelehnt. Die Begründung sieht der Antragsteller in seiner Übersicht.</MudText>
+        <MudTextField @bind-Value="_note" Label="Begründung (optional)" Lines="3" Variant="Variant.Outlined" MaxLength="500" Immediate="true" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">Abbrechen</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="@(() => MudDialog.Close(DialogResult.Ok(_note ?? "")))">Ablehnen</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    private string? _note;
+}

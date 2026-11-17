@@ -1,0 +1,81 @@
+@inject ISnackbar Snackbar
+
+<MudForm @ref="_form">
+    <div class="bb-section-title">Allgemein</div>
+    <MudTextField @bind-Value="Draft.Title" Label="Titel / Frage" Placeholder="z. B. Wer gewinnt das Kicker-Turnier?" Required="true" RequiredError="Titel fehlt"
+                  MaxLength="200" Variant="Variant.Outlined" Class="mb-4" Immediate="true" />
+    <MudTextField @bind-Value="Draft.Description" Label="Beschreibung / Regeln (optional)" Lines="3" Variant="Variant.Outlined" Class="mb-4"
+                  HelperText="Wann gilt eine Option als gewonnen? Je klarer, desto weniger Diskussionen." />
+
+    <MudStack Row="true" Spacing="3" Class="mb-6">
+        <MudDatePicker @bind-Date="Draft.ClosesDate" Label="@(RequireDeadline ? "Wettschluss – Datum" : "Wettschluss – Datum (optional)")"
+                       Variant="Variant.Outlined" Clearable="@(!RequireDeadline)" Required="RequireDeadline" RequiredError="Wettschluss fehlt" />
+        <MudTimePicker @bind-Time="Draft.ClosesTime" Label="Uhrzeit" Variant="Variant.Outlined" />
+    </MudStack>
+
+    <MudDivider Class="mb-6" />
+    <div class="bb-section-title">@(OddsAreSuggestion ? "Optionen & Quoten-Vorschlag" : "Optionen & Quoten")</div>
+    @if (!string.IsNullOrEmpty(OddsHint))
+    {
+        <MudText Typo="Typo.body2" Class="bb-muted mb-4">@OddsHint</MudText>
+    }
+
+    @foreach (var option in Draft.Options)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+            <MudTextField @bind-Value="option.Label" Label="Option" Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="100"
+                          Required="true" RequiredError="Bezeichnung fehlt" Immediate="true" />
+            <MudNumericField T="decimal" @bind-Value="option.Odds" Label="Quote" Min="1.01m" Max="1000m" Step="0.05m" Format="0.00"
+                             Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:9rem" />
+            @if (option.BetCount > 0)
+            {
+                <MudText Typo="Typo.caption" Style="min-width:5rem">@option.BetCount Wetten</MudText>
+            }
+            <MudTooltip Text="@(option.BetCount > 0 ? "Auf diese Option wurde bereits gesetzt" : "Option entfernen")">
+                <MudIconButton Icon="@Icons.Material.Rounded.Delete" Disabled="@(Draft.Options.Count <= 2 || option.BetCount > 0)"
+                               OnClick="@(() => Draft.Options.Remove(option))" />
+            </MudTooltip>
+        </MudStack>
+    }
+    <MudButton StartIcon="@Icons.Material.Rounded.Add" Variant="Variant.Outlined" Color="Color.Primary" Class="mb-4"
+               OnClick="@(() => Draft.Options.Add(new BetDraft.DraftOption()))">Option hinzufügen</MudButton>
+
+    <MudDivider Class="mb-5" />
+    <MudStack Row="true" Spacing="2" Justify="Justify.FlexEnd" Wrap="Wrap.Wrap">
+        @if (!string.IsNullOrEmpty(CancelHref))
+        {
+            <MudButton Href="@CancelHref" Variant="Variant.Text" Color="Color.Default">Abbrechen</MudButton>
+        }
+        @ExtraActions
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="Busy" OnClick="Submit" StartIcon="@SubmitIcon">@SubmitText</MudButton>
+    </MudStack>
+</MudForm>
+
+@code {
+    [Parameter, EditorRequired] public BetDraft Draft { get; set; } = default!;
+    [Parameter] public bool RequireDeadline { get; set; }
+    [Parameter] public bool DeadlineInFuture { get; set; } = true;
+    [Parameter] public bool OddsAreSuggestion { get; set; }
+    [Parameter] public string? OddsHint { get; set; }
+    [Parameter] public string SubmitText { get; set; } = "Speichern";
+    [Parameter] public string SubmitIcon { get; set; } = Icons.Material.Rounded.Check;
+    [Parameter] public string? CancelHref { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public RenderFragment? ExtraActions { get; set; }
+    /// <summary>Called with the validated draft.</summary>
+    [Parameter] public EventCallback<BetDraft> OnSubmit { get; set; }
+
+    private MudForm? _form;
+
+    private async Task Submit()
+    {
+        await _form!.ValidateAsync();
+        if (!_form.IsValid) return;
+        if (Draft.Validate(RequireDeadline, DeadlineInFuture) is { } error)
+        {
+            Snackbar.Add(error, Severity.Warning);
+            return;
+        }
+        await OnSubmit.InvokeAsync(Draft);
+    }
+}

@@ -44,6 +44,15 @@ public static class Fmt
         return hour switch { < 11 => "Guten Morgen", < 18 => "Hallo", _ => "Guten Abend" };
     }
 
+    public static (string Label, string Css) Status(BetRequest request) => request.Status switch
+    {
+        RequestStatus.Pending => ("In Prüfung", "bb-tint-warning bb-pill-live"),
+        RequestStatus.Approved => ("Genehmigt", "bb-tint-success"),
+        RequestStatus.Rejected => ("Abgelehnt", "bb-tint-error"),
+        RequestStatus.Withdrawn => ("Zurückgezogen", "bb-pill-neutral"),
+        _ => (request.Status, "bb-pill-neutral"),
+    };
+
     public static (string Label, string Css) Status(BetEvent ev) => ev.Status switch
     {
         EventStatus.Open when ev.AcceptsBets => ("Live", "bb-tint-success bb-pill-live"),

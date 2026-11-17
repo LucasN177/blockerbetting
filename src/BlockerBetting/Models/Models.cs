@@ -81,6 +81,39 @@ public static class Payouts
     public static long For(long amount, decimal odds) => (long)Math.Floor(amount * odds);
 }
 
+public static class RequestStatus
+{
+    public const string Pending = "pending";
+    public const string Approved = "approved";
+    public const string Rejected = "rejected";
+    public const string Withdrawn = "withdrawn";
+}
+
+/// <summary>One proposed option inside a bet request (stored as jsonb).</summary>
+public class RequestOption
+{
+    [JsonPropertyName("label")] public string Label { get; set; } = "";
+    [JsonPropertyName("odds")] public decimal Odds { get; set; }
+}
+
+/// <summary>A bet proposed by a player, reviewed by an admin.</summary>
+[Table("bet_requests")]
+public class BetRequest : BaseModel
+{
+    [PrimaryKey("id")] public Guid Id { get; set; }
+    [Column("requested_by")] public Guid RequestedBy { get; set; }
+    [Column("title")] public string Title { get; set; } = "";
+    [Column("description")] public string? Description { get; set; }
+    [Column("closes_at")] public DateTime ClosesAt { get; set; }
+    [Column("options")] public List<RequestOption> Options { get; set; } = [];
+    [Column("status")] public string Status { get; set; } = RequestStatus.Pending;
+    [Column("admin_note")] public string? AdminNote { get; set; }
+    [Column("event_id")] public Guid? EventId { get; set; }
+    [Column("reviewed_by")] public Guid? ReviewedBy { get; set; }
+    [Column("reviewed_at")] public DateTime? ReviewedAt { get; set; }
+    [Column("created_at")] public DateTime CreatedAt { get; set; }
+}
+
 public record Winner(string DisplayName, long Payout);
 
 /// <summary>The most recently resolved bet and its winners.</summary>
