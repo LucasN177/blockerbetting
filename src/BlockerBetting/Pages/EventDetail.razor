@@ -41,6 +41,7 @@ else
             }
         </div>
         <MudText Typo="Typo.h4">@ev.Event.Title</MudText>
+        <CreatorTag Item="ev" Size="24" Class="mt-2" />
         @if (!string.IsNullOrWhiteSpace(ev.Event.Description))
         {
             <MudText Class="bb-muted mt-2" Style="white-space:pre-line; max-width:70ch">@ev.Event.Description</MudText>

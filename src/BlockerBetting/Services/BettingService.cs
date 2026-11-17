@@ -104,11 +104,13 @@ public class BettingService(Supabase.Client client)
         var events = (await client.From<BetEvent>().Order("created_at", Ordering.Descending).Get()).Models;
         var options = (await client.From<EventOption>().Order("sort_order", Ordering.Ascending).Get()).Models;
         var pools = (await client.From<OptionPool>().Get()).Models;
+        var names = await GetDisplayNamesAsync();
 
         return events.Select(e => new EventOverview(
                 e,
                 options.Where(o => o.EventId == e.Id).ToList(),
-                pools.Where(p => p.EventId == e.Id).ToDictionary(p => p.OptionId)))
+                pools.Where(p => p.EventId == e.Id).ToDictionary(p => p.OptionId),
+                CreatorNameOf(e, names)))
             .ToList();
     }
 
@@ -120,8 +122,17 @@ public class BettingService(Supabase.Client client)
         var options = (await client.From<EventOption>().Filter("event_id", Operator.Equals, id)
             .Order("sort_order", Ordering.Ascending).Get()).Models;
         var pools = (await client.From<OptionPool>().Filter("event_id", Operator.Equals, id).Get()).Models;
-        return new EventOverview(ev, options, pools.ToDictionary(p => p.OptionId));
+        string? creator = null;
+        if (ev.CreatedBy is { } creatorId)
+        {
+            var profile = await client.From<Profile>().Filter("id", Operator.Equals, creatorId.ToString()).Single();
+            creator = profile?.DisplayName;
+        }
+        return new EventOverview(ev, options, pools.ToDictionary(p => p.OptionId), creator);
     }
+
+    private static string? CreatorNameOf(BetEvent ev, IReadOnlyDictionary<Guid, string> names) =>
+        ev.CreatedBy is { } id ? names.GetValueOrDefault(id) : null;
 
     public async Task<List<Bet>> GetMyBetsAsync(Guid? eventId = null)
     {

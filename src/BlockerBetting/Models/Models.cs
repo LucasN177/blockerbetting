@@ -124,7 +124,7 @@ public record LatestWinners(BetEvent Event, IReadOnlyList<Winner> Winners);
 public record OptionInput(Guid? Id, string Label, decimal Odds);
 
 /// <summary>An event together with its options and current stake volume.</summary>
-public record EventOverview(BetEvent Event, IReadOnlyList<EventOption> Options, IReadOnlyDictionary<Guid, OptionPool> Pools)
+public record EventOverview(BetEvent Event, IReadOnlyList<EventOption> Options, IReadOnlyDictionary<Guid, OptionPool> Pools, string? CreatorName = null)
 {
     public long TotalStake => Pools.Values.Sum(p => p.TotalAmount);
 

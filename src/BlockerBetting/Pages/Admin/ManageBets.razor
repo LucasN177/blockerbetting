@@ -52,6 +52,7 @@ else
         <RowTemplate>
             <MudTd DataLabel="Wette">
                 <MudLink Href="@($"events/{context.Event.Id}")" Color="Color.Inherit" Style="font-weight:700">@context.Event.Title</MudLink>
+                <div><CreatorTag Item="context" Size="18" /></div>
                 <div class="bb-muted" style="font-size:0.78rem">
                     @(context.Event.ClosesAt is { } c ? $"Wettschluss {Fmt.Date(c)}" : "Kein Wettschluss")
                 </div>

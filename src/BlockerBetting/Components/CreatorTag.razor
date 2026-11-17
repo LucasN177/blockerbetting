@@ -1,0 +1,17 @@
+@inject BettingService Betting
+
+@* "von <Name>" with avatar – shows who created a bet. Renders nothing for bets without a known creator. *@
+@if (!string.IsNullOrEmpty(Item.CreatorName))
+{
+    var mine = Betting.IsCreator(Item.Event);
+    <span class="bb-creator @Class" title="Erstellt von @Item.CreatorName">
+        <Avatar Name="@Item.CreatorName" Size="@Size" />
+        <span>von <b>@(mine ? "dir" : Item.CreatorName)</b></span>
+    </span>
+}
+
+@code {
+    [Parameter, EditorRequired] public EventOverview Item { get; set; } = default!;
+    [Parameter] public int Size { get; set; } = 20;
+    [Parameter] public string? Class { get; set; }
+}
