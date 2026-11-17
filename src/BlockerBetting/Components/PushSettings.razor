@@ -1,0 +1,119 @@
+@inject PushService Push
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+@* Push notification opt-in. Compact = small hint card that only shows while push is off on this device. *@
+@if (Push.IsConfigured && _state is { } state && !(Compact && (state.Subscribed || state.Blocked || !state.Supported && !state.NeedsHomeScreen)))
+{
+    <div class="bb-card @(Compact ? "pa-4" : "bb-card-pad") @Class">
+        <div class="d-flex align-start gap-3">
+            <div class="bb-stat-icon @(state.Subscribed ? "bb-tint-success" : "bb-tint-primary")">
+                <MudIcon Icon="@(state.Subscribed ? Icons.Material.Rounded.NotificationsActive : Icons.Material.Rounded.NotificationsNone)" />
+            </div>
+            <div class="bb-grow">
+                <div style="font-weight:700">Push-Benachrichtigungen</div>
+                <div class="bb-muted" style="font-size:0.85rem">@Description</div>
+
+                @if (state.NeedsHomeScreen)
+                {
+                    <div class="mt-3 pa-3" style="font-size:0.85rem; border-radius:12px; background:var(--mud-palette-background-gray)">
+                        <b>Auf dem iPhone/iPad</b> gehen Benachrichtigungen nur, wenn BlockerBetting auf dem Home-Bildschirm installiert ist:
+                        in Safari auf <b>Teilen</b> <MudIcon Icon="@Icons.Material.Rounded.IosShare" Size="Size.Small" Style="vertical-align:-4px" />
+                        tippen → <b>„Zum Home-Bildschirm“</b>, dann die App von dort öffnen und hier aktivieren.
+                    </div>
+                }
+                else if (!state.Supported)
+                {
+                    <div class="bb-muted mt-2" style="font-size:0.85rem">Dieser Browser unterstützt keine Push-Benachrichtigungen.</div>
+                }
+                else if (state.Blocked)
+                {
+                    <div class="mt-3 pa-3" style="font-size:0.85rem; border-radius:12px; background:rgba(var(--mud-palette-warning-rgb),0.12)">
+                        Benachrichtigungen sind für diese Seite im Browser <b>blockiert</b>. Erlaube sie über das Schloss-Symbol in der Adressleiste
+                        (bzw. in den Website-Einstellungen) und lade die Seite neu.
+                    </div>
+                }
+                else
+                {
+                    <div class="d-flex align-center flex-wrap gap-2 mt-3">
+                        @if (state.Subscribed)
+                        {
+                            <span class="bb-pill bb-tint-success">Aktiv auf diesem Gerät</span>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" Disabled="_busy" OnClick="Disable">Deaktivieren</MudButton>
+                        }
+                        else
+                        {
+                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="Enable"
+                                       StartIcon="@Icons.Material.Rounded.NotificationsActive">Benachrichtigungen aktivieren</MudButton>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private PushService.PushState? _state;
+    private bool _busy;
+
+    private string Description => Betting.CurrentProfile?.IsAdmin == true
+        ? "Erfahre sofort, wenn eine neue Wett-Anfrage eingeht und wenn über deine eigenen Vorschläge entschieden wurde."
+        : "Erfahre sofort, wenn ein Admin deinen Wett-Vorschlag angenommen oder abgelehnt hat.";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || !Push.IsConfigured) return;
+        await LoadState();
+        StateHasChanged();
+    }
+
+    private async Task LoadState()
+    {
+        try { _state = await Push.GetStateAsync(); }
+        catch { _state = null; }
+    }
+
+    private async Task Enable()
+    {
+        _busy = true;
+        try
+        {
+            if (await Push.EnableAsync())
+                Snackbar.Add("Benachrichtigungen sind auf diesem Gerät aktiv.", Severity.Success);
+            else
+                Snackbar.Add("Ohne deine Erlaubnis können wir keine Benachrichtigungen senden.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            await LoadState();
+            _busy = false;
+        }
+    }
+
+    private async Task Disable()
+    {
+        _busy = true;
+        try
+        {
+            await Push.DisableAsync();
+            Snackbar.Add("Benachrichtigungen auf diesem Gerät deaktiviert.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            await LoadState();
+            _busy = false;
+        }
+    }
+}

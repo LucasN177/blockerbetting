@@ -1,0 +1,6 @@
+# Minimal Supabase CLI configuration for deploying Edge Functions.
+# The project itself is linked via `supabase link --project-ref <ref>` or the deploy workflow.
+
+[functions.send-push]
+# Called by the database with a shared secret (x-webhook-secret), not with a user JWT.
+verify_jwt = false

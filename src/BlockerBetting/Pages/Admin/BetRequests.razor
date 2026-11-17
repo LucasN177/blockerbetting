@@ -16,6 +16,11 @@
     </Actions>
 </PageHeader>
 
+@if (Betting.CurrentProfile?.IsAdmin == true)
+{
+    <PushSettings Compact="true" Class="mb-6" />
+}
+
 @if (Betting.CurrentProfile?.IsAdmin != true)
 {
     <MudAlert Severity="Severity.Warning">Nur Admins können Anfragen bearbeiten.</MudAlert>

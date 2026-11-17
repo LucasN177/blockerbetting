@@ -50,13 +50,13 @@
 
             @if (_tab == 0)
             {
-                    <MudForm @ref="_loginForm" @onsubmit="SignIn">
+                    <MudForm @ref="_loginForm">
                         <MudTextField @bind-Value="_email" Label="E-Mail" InputType="InputType.Email" Required="true" RequiredError="E-Mail fehlt" Immediate="true"
-                                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Email" Class="mb-4" />
+                                      OnKeyDown="@(e => OnEnter(e, SignIn))" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Email" Class="mb-4" />
                         <MudTextField @bind-Value="_password" Immediate="true" Label="Passwort" InputType="@(_showPassword ? InputType.Text : InputType.Password)" Required="true" RequiredError="Passwort fehlt"
-                                      Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                                      OnKeyDown="@(e => OnEnter(e, SignIn))" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
                                       OnAdornmentClick="@(() => _showPassword = !_showPassword)" AdornmentAriaLabel="Passwort anzeigen" Class="mb-6" />
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Disabled="_busy" Class="bb-cta">
+                        <MudButton Variant="Variant.Filled" FullWidth="true" Disabled="_busy" Class="bb-cta" OnClick="SignIn">
                             @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Style="color:inherit" /> }
                             Anmelden
                         </MudButton>
@@ -64,16 +64,16 @@
             }
             else
             {
-                    <MudForm @ref="_registerForm" @onsubmit="SignUp">
+                    <MudForm @ref="_registerForm">
                         <MudTextField @bind-Value="_displayName" Immediate="true" Label="Anzeigename" Required="true" RequiredError="Anzeigename fehlt" MaxLength="40"
-                                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Badge" Class="mb-4" />
+                                      OnKeyDown="@(e => OnEnter(e, SignUp))" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Badge" Class="mb-4" />
                         <MudTextField @bind-Value="_email" Label="E-Mail" InputType="InputType.Email" Required="true" RequiredError="E-Mail fehlt" Immediate="true"
-                                      Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Email" Class="mb-4" />
+                                      OnKeyDown="@(e => OnEnter(e, SignUp))" Variant="Variant.Outlined" Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Outlined.Email" Class="mb-4" />
                         <MudTextField @bind-Value="_password" Immediate="true" Label="Passwort" HelperText="Mindestens 6 Zeichen" InputType="@(_showPassword ? InputType.Text : InputType.Password)" Required="true"
                                       Validation="@(new Func<string, string?>(ValidatePassword))"
-                                      Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
+                                      OnKeyDown="@(e => OnEnter(e, SignUp))" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentIcon="@(_showPassword ? Icons.Material.Outlined.VisibilityOff : Icons.Material.Outlined.Visibility)"
                                       OnAdornmentClick="@(() => _showPassword = !_showPassword)" AdornmentAriaLabel="Passwort anzeigen" Class="mb-6" />
-                        <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" FullWidth="true" Disabled="_busy" Class="bb-cta">
+                        <MudButton Variant="Variant.Filled" FullWidth="true" Disabled="_busy" Class="bb-cta" OnClick="SignUp">
                             @if (_busy) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Style="color:inherit" /> }
                             Account erstellen
                         </MudButton>
@@ -99,6 +99,12 @@
     protected override void OnInitialized()
     {
         if (Betting.CurrentUserId is not null) Done();
+    }
+
+    // Enter in any field submits (MudForm does not forward a native form submit).
+    private async Task OnEnter(KeyboardEventArgs e, Func<Task> submit)
+    {
+        if (e.Key is "Enter" or "NumpadEnter" && !_busy) await submit();
     }
 
     private static string? ValidatePassword(string? password) =>

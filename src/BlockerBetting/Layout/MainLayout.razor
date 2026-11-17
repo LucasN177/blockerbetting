@@ -2,6 +2,7 @@
 @implements IDisposable
 @inject BettingService Betting
 @inject ThemeService ThemeService
+@inject PushService Push
 @inject NavigationManager Nav
 
 <ThemeRoot />
@@ -66,8 +67,21 @@
 
     private void Refresh() => InvokeAsync(StateHasChanged);
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        // Keep this device's push subscription assigned to the signed-in user.
+        if (firstRender)
+        {
+            try { await Push.SyncAsync(); }
+            catch (Exception ex) { Console.WriteLine($"Push-Sync fehlgeschlagen: {ex.Message}"); }
+        }
+    }
+
     private async Task SignOut()
     {
+        // Stop sending this user's notifications to this device before the session ends.
+        try { await Push.ForgetDeviceAsync(); }
+        catch (Exception ex) { Console.WriteLine($"Push-Abmeldung fehlgeschlagen: {ex.Message}"); }
         await Betting.SignOutAsync();
         Nav.NavigateTo("login");
     }

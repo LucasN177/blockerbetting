@@ -34,13 +34,18 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          # Public VAPID key (optional). Without it the push settings are hidden in the app.
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
         run: |
           if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
             echo "::error::Secrets SUPABASE_URL und SUPABASE_KEY müssen gesetzt sein."
             exit 1
           fi
-          jq -n --arg url "$SUPABASE_URL" --arg key "$SUPABASE_KEY" \
-            '{Supabase: {Url: $url, Key: $key}}' > "$PROJECT_DIR/wwwroot/appsettings.json"
+          if [ -z "$VAPID_PUBLIC_KEY" ]; then
+            echo "::warning::Secret VAPID_PUBLIC_KEY fehlt – Push-Benachrichtigungen sind deaktiviert."
+          fi
+          jq -n --arg url "$SUPABASE_URL" --arg key "$SUPABASE_KEY" --arg vapid "$VAPID_PUBLIC_KEY" \
+            '{Supabase: {Url: $url, Key: $key}, Push: {VapidPublicKey: $vapid}}' > "$PROJECT_DIR/wwwroot/appsettings.json"
 
       # Patch index.html before publishing so the service-worker integrity hashes match.
       - name: Set base href and version in index.html

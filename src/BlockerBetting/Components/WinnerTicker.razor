@@ -37,8 +37,10 @@
     protected override async Task OnInitializedAsync()
     {
         Betting.WinnersChanged += OnWinnersChanged;
+        // Take the token before awaiting: the component may be disposed while the first load is running.
+        var token = _cts.Token;
         await Load();
-        _ = RefreshPeriodically(_cts.Token);
+        if (!token.IsCancellationRequested) _ = RefreshPeriodically(token);
     }
 
     // Long enough to read: roughly 4 seconds per winner, at least 18 seconds per loop.
@@ -73,7 +75,7 @@
     public void Dispose()
     {
         Betting.WinnersChanged -= OnWinnersChanged;
+        // Cancel only – a pending timer still observes the token, so the source is not disposed.
         _cts.Cancel();
-        _cts.Dispose();
     }
 }

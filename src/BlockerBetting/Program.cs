@@ -25,6 +25,7 @@ builder.Services.AddSingleton(sp => new Supabase.Client(supabaseUrl, supabaseKey
 }));
 builder.Services.AddSingleton<BettingService>();
 builder.Services.AddSingleton<ThemeService>();
+builder.Services.AddSingleton<PushService>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<SupabaseAuthStateProvider>();
