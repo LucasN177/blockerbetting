@@ -851,3 +851,118 @@ body {
     color: var(--mud-palette-primary);
     box-shadow: var(--bb-shadow-sm);
 }
+
+/* ---------- Winner ticker ---------- */
+
+.bb-ticker {
+    display: flex;
+    align-items: stretch;
+    height: 40px;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(245, 158, 11, 0.28);
+    background:
+        linear-gradient(90deg, rgba(253, 230, 138, 0.22), rgba(245, 158, 11, 0.10) 40%, rgba(var(--mud-palette-primary-rgb), 0.06));
+    font-size: 0.85rem;
+}
+
+.bb-ticker-label {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 1rem 0 1.25rem;
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+    color: #92400e;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+    text-decoration: none;
+    white-space: nowrap;
+    background: linear-gradient(90deg, #fde68a, #fbbf24);
+    clip-path: polygon(0 0, 100% 0, calc(100% - 12px) 100%, 0 100%);
+    padding-right: 1.6rem;
+}
+
+.bb-ticker-trophy {
+    font-size: 1rem;
+}
+
+.bb-ticker-viewport {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+    mask-image: linear-gradient(90deg, transparent, #000 32px, #000 calc(100% - 32px), transparent);
+}
+
+.bb-ticker-track {
+    display: flex;
+    width: max-content;
+    height: 100%;
+    animation-name: bb-ticker-scroll;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+}
+
+.bb-ticker:hover .bb-ticker-track {
+    animation-play-state: paused;
+}
+
+.bb-ticker-group {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    padding-right: 2rem;
+    white-space: nowrap;
+}
+
+.bb-ticker-event {
+    font-weight: 600;
+    color: var(--mud-palette-text-secondary);
+}
+
+    .bb-ticker-event::after {
+        content: "·";
+        margin-left: 2rem;
+        opacity: 0.5;
+    }
+
+.bb-ticker-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bb-ticker-name {
+    font-weight: 600;
+    color: var(--mud-palette-text-primary);
+}
+
+.bb-ticker-amount {
+    color: var(--mud-palette-success);
+}
+
+@keyframes bb-ticker-scroll {
+    from { transform: translateX(0); }
+    to { transform: translateX(-50%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bb-ticker-track {
+        animation: none;
+    }
+
+    .bb-ticker-viewport {
+        overflow-x: auto;
+    }
+}
+
+@media (max-width: 600px) {
+    .bb-ticker-label-text {
+        display: none;
+    }
+
+    .bb-ticker-label {
+        padding: 0 1.3rem 0 0.9rem;
+    }
+}

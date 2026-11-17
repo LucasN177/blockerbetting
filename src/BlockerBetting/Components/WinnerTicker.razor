@@ -1,0 +1,79 @@
+@implements IDisposable
+@inject BettingService Betting
+
+@* Only shown when the most recently resolved bet has winners. *@
+@if (_latest is { Winners.Count: > 0 } latest)
+{
+    <div class="bb-ticker" role="marquee" aria-label="Gewinner der letzten Wette">
+        <a class="bb-ticker-label" href="@($"events/{latest.Event.Id}")" title="@latest.Event.Title">
+            <span class="bb-ticker-trophy">🏆</span>
+            <span class="bb-ticker-label-text">Letzte Gewinner</span>
+        </a>
+        <div class="bb-ticker-viewport">
+            <div class="bb-ticker-track" style="animation-duration:@(Duration(latest))s">
+                @* Rendered twice so the loop scrolls seamlessly. *@
+                @for (var copy = 0; copy < 2; copy++)
+                {
+                    <div class="bb-ticker-group" aria-hidden="@(copy == 1 ? "true" : "false")">
+                        <span class="bb-ticker-event">@latest.Event.Title</span>
+                        @foreach (var winner in latest.Winners)
+                        {
+                            <span class="bb-ticker-item">
+                                <span class="bb-ticker-name">@winner.DisplayName</span>
+                                <span class="bb-coins bb-ticker-amount"><span class="bb-coin"></span>+@Fmt.Coins(winner.Payout)</span>
+                            </span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private LatestWinners? _latest;
+    private readonly CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Betting.WinnersChanged += OnWinnersChanged;
+        await Load();
+        _ = RefreshPeriodically(_cts.Token);
+    }
+
+    // Long enough to read: roughly 4 seconds per winner, at least 18 seconds per loop.
+    private static int Duration(LatestWinners latest) => Math.Max(18, (latest.Winners.Count + 1) * 4);
+
+    private async Task Load()
+    {
+        try { _latest = await Betting.GetLatestWinnersAsync(); }
+        catch { /* the ticker is optional – never break the page */ }
+    }
+
+    private async Task RefreshPeriodically(CancellationToken token)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromMinutes(2));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(token))
+            {
+                await Load();
+                await InvokeAsync(StateHasChanged);
+            }
+        }
+        catch (OperationCanceledException) { }
+    }
+
+    private void OnWinnersChanged() => InvokeAsync(async () =>
+    {
+        await Load();
+        StateHasChanged();
+    });
+
+    public void Dispose()
+    {
+        Betting.WinnersChanged -= OnWinnersChanged;
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

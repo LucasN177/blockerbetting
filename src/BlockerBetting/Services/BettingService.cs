@@ -13,6 +13,9 @@ public class BettingService(Supabase.Client client)
     /// <summary>Raised whenever <see cref="CurrentProfile"/> changes (e.g. coins after a bet).</summary>
     public event Action? ProfileChanged;
 
+    /// <summary>Raised after a bet was resolved, so the winner ticker can refresh.</summary>
+    public event Action? WinnersChanged;
+
     public Guid? CurrentUserId =>
         Guid.TryParse(client.Auth.CurrentUser?.Id, out var id) ? id : null;
 
@@ -66,6 +69,33 @@ public class BettingService(Supabase.Client client)
 
     public async Task<List<Profile>> GetLeaderboardAsync() =>
         (await client.From<Profile>().Order("coins", Ordering.Descending).Get()).Models;
+
+    /// <summary>
+    /// Winners of the most recently resolved bet (payout summed per player, highest first).
+    /// Returns null when no bet has been resolved yet.
+    /// </summary>
+    public async Task<LatestWinners?> GetLatestWinnersAsync()
+    {
+        var latest = (await client.From<BetEvent>()
+            .Filter("status", Operator.Equals, EventStatus.Resolved)
+            .Order("resolved_at", Ordering.Descending, NullPosition.Last)
+            .Limit(1)
+            .Get()).Models.FirstOrDefault();
+        if (latest is null) return null;
+
+        var winningBets = (await client.From<Bet>()
+            .Filter("event_id", Operator.Equals, latest.Id.ToString())
+            .Filter("payout", Operator.GreaterThan, "0")
+            .Get()).Models;
+        var names = (await client.From<Profile>().Get()).Models.ToDictionary(p => p.Id, p => p.DisplayName);
+
+        var winners = winningBets
+            .GroupBy(b => b.UserId)
+            .Select(g => new Winner(names.GetValueOrDefault(g.Key, "Unbekannt"), g.Sum(b => b.Payout ?? 0)))
+            .OrderByDescending(w => w.Payout)
+            .ToList();
+        return new LatestWinners(latest, winners);
+    }
 
     // ---------- Events ----------
 
@@ -154,6 +184,7 @@ public class BettingService(Supabase.Client client)
             ["p_event_id"] = eventId, ["p_winning_option_id"] = winningOptionId,
         });
         await RefreshProfileAsync();
+        WinnersChanged?.Invoke();
     }
 
     public async Task CancelEventAsync(Guid eventId)

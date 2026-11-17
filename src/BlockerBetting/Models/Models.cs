@@ -81,6 +81,11 @@ public static class Payouts
     public static long For(long amount, decimal odds) => (long)Math.Floor(amount * odds);
 }
 
+public record Winner(string DisplayName, long Payout);
+
+/// <summary>The most recently resolved bet and its winners.</summary>
+public record LatestWinners(BetEvent Event, IReadOnlyList<Winner> Winners);
+
 /// <summary>Option data sent to create_event / update_event.</summary>
 public record OptionInput(Guid? Id, string Label, decimal Odds);
 
