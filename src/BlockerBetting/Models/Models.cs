@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using BlockerBetting.Services;
 using Supabase.Postgrest.Attributes;
 using Supabase.Postgrest.Models;
 
@@ -11,7 +12,7 @@ public class Profile : BaseModel
     [Column("display_name")] public string DisplayName { get; set; } = "";
     [Column("coins", ignoreOnInsert: true, ignoreOnUpdate: true)] public long Coins { get; set; }
     [Column("is_admin", ignoreOnInsert: true, ignoreOnUpdate: true)] public bool IsAdmin { get; set; }
-    [Column("created_at", ignoreOnInsert: true, ignoreOnUpdate: true)] public DateTime CreatedAt { get; set; }
+    [Column("created_at", ignoreOnInsert: true, ignoreOnUpdate: true)] public DateTime CreatedAt { get; set => field = BerlinTime.ToUtc(value); }
 }
 
 public static class EventStatus
@@ -29,11 +30,11 @@ public class BetEvent : BaseModel
     [Column("title")] public string Title { get; set; } = "";
     [Column("description")] public string? Description { get; set; }
     [Column("status")] public string Status { get; set; } = EventStatus.Open;
-    [Column("closes_at")] public DateTime? ClosesAt { get; set; }
+    [Column("closes_at")] public DateTime? ClosesAt { get; set => field = BerlinTime.ToUtc(value); }
     [Column("winning_option_id")] public Guid? WinningOptionId { get; set; }
     [Column("created_by")] public Guid? CreatedBy { get; set; }
-    [Column("created_at")] public DateTime CreatedAt { get; set; }
-    [Column("resolved_at")] public DateTime? ResolvedAt { get; set; }
+    [Column("created_at")] public DateTime CreatedAt { get; set => field = BerlinTime.ToUtc(value); }
+    [Column("resolved_at")] public DateTime? ResolvedAt { get; set => field = BerlinTime.ToUtc(value); }
 
     [JsonIgnore]
     public bool AcceptsBets => Status == EventStatus.Open && (ClosesAt is null || ClosesAt > DateTime.UtcNow);
@@ -68,7 +69,7 @@ public class Bet : BaseModel
     [Column("amount")] public long Amount { get; set; }
     [Column("odds")] public decimal Odds { get; set; }
     [Column("payout")] public long? Payout { get; set; }
-    [Column("created_at")] public DateTime CreatedAt { get; set; }
+    [Column("created_at")] public DateTime CreatedAt { get; set => field = BerlinTime.ToUtc(value); }
 
     /// <summary>Payout if this bet wins (fixed odds stored at bet time).</summary>
     [JsonIgnore]
@@ -104,14 +105,14 @@ public class BetRequest : BaseModel
     [Column("requested_by")] public Guid RequestedBy { get; set; }
     [Column("title")] public string Title { get; set; } = "";
     [Column("description")] public string? Description { get; set; }
-    [Column("closes_at")] public DateTime ClosesAt { get; set; }
+    [Column("closes_at")] public DateTime ClosesAt { get; set => field = BerlinTime.ToUtc(value); }
     [Column("options")] public List<RequestOption> Options { get; set; } = [];
     [Column("status")] public string Status { get; set; } = RequestStatus.Pending;
     [Column("admin_note")] public string? AdminNote { get; set; }
     [Column("event_id")] public Guid? EventId { get; set; }
     [Column("reviewed_by")] public Guid? ReviewedBy { get; set; }
-    [Column("reviewed_at")] public DateTime? ReviewedAt { get; set; }
-    [Column("created_at")] public DateTime CreatedAt { get; set; }
+    [Column("reviewed_at")] public DateTime? ReviewedAt { get; set => field = BerlinTime.ToUtc(value); }
+    [Column("created_at")] public DateTime CreatedAt { get; set => field = BerlinTime.ToUtc(value); }
 }
 
 public record Winner(string DisplayName, long Payout);

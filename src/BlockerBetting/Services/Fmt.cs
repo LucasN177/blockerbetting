@@ -12,15 +12,18 @@ public static class Fmt
 
     public static string Odds(decimal odds) => odds.ToString("0.00", De);
 
-    public static string Date(DateTime utc) => utc.ToLocalTime().ToString("dd.MM.yyyy, HH:mm", De);
+    // All dates are shown in German time, regardless of the device time zone.
+    public static string Date(DateTime value) => BerlinTime.ToBerlin(value).ToString("dd.MM.yyyy, HH:mm", De);
 
-    public static string ShortDate(DateTime utc) => utc.ToLocalTime().ToString("dd.MM., HH:mm", De);
+    public static string ShortDate(DateTime value) => BerlinTime.ToBerlin(value).ToString("dd.MM., HH:mm", De);
+
+    public static string MonthYear(DateTime value) => BerlinTime.ToBerlin(value).ToString("MMMM yyyy", De);
 
     /// <summary>"noch 2 T 4 Std", "noch 35 Min", or null when no deadline / already passed.</summary>
     public static string? TimeLeft(DateTime? closesAtUtc)
     {
         if (closesAtUtc is null) return null;
-        var left = closesAtUtc.Value - DateTime.UtcNow;
+        var left = BerlinTime.ToUtc(closesAtUtc.Value) - DateTime.UtcNow;
         if (left <= TimeSpan.Zero) return null;
         if (left.TotalDays >= 1) return $"noch {(int)left.TotalDays} T {left.Hours} Std";
         if (left.TotalHours >= 1) return $"noch {(int)left.TotalHours} Std {left.Minutes} Min";
@@ -40,7 +43,7 @@ public static class Fmt
 
     public static string Greeting()
     {
-        var hour = DateTime.Now.Hour;
+        var hour = BerlinTime.Now.Hour;
         return hour switch { < 11 => "Guten Morgen", < 18 => "Hallo", _ => "Guten Abend" };
     }
 

@@ -10,7 +10,7 @@
     <MudStack Row="true" Spacing="3" Class="mb-6">
         <MudDatePicker @bind-Date="Draft.ClosesDate" Label="@(RequireDeadline ? "Wettschluss – Datum" : "Wettschluss – Datum (optional)")"
                        Variant="Variant.Outlined" Clearable="@(!RequireDeadline)" Required="RequireDeadline" RequiredError="Wettschluss fehlt" />
-        <MudTimePicker @bind-Time="Draft.ClosesTime" Label="Uhrzeit" Variant="Variant.Outlined" />
+        <MudTimePicker @bind-Time="Draft.ClosesTime" Label="Uhrzeit" Variant="Variant.Outlined" HelperText="Deutsche Zeit" />
     </MudStack>
 
     <MudDivider Class="mb-6" />

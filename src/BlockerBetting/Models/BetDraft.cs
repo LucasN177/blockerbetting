@@ -1,3 +1,5 @@
+using BlockerBetting.Services;
+
 namespace BlockerBetting.Models;
 
 /// <summary>Editable state of a bet in a form (admin create/edit, player request, admin review).</summary>
@@ -42,16 +44,17 @@ public class BetDraft
         return draft;
     }
 
-    private void SetDeadline(DateTime? utc)
+    // Date and time in the form are German time (Europe/Berlin), whatever the device time zone is.
+    private void SetDeadline(DateTime? value)
     {
-        if (utc is null) return;
-        var local = utc.Value.ToLocalTime();
-        ClosesDate = local.Date;
-        ClosesTime = local.TimeOfDay;
+        if (value is null) return;
+        var berlin = BerlinTime.ToBerlin(value.Value);
+        ClosesDate = berlin.Date;
+        ClosesTime = berlin.TimeOfDay;
     }
 
     public DateTime? ClosesAtUtc => ClosesDate is { } date
-        ? DateTime.SpecifyKind(date.Date + (ClosesTime ?? TimeSpan.Zero), DateTimeKind.Local).ToUniversalTime()
+        ? BerlinTime.FromBerlin(date, ClosesTime ?? TimeSpan.Zero)
         : null;
 
     public List<OptionInput> ToOptionInputs() => Options
