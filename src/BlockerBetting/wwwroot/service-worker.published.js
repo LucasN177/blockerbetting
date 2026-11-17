@@ -25,6 +25,10 @@ async function onInstall(event) {
         .filter(asset => !offlineAssetsExclude.some(pattern => pattern.test(asset.url)))
         .map(asset => new Request(asset.url, { integrity: asset.hash, cache: 'no-cache' }));
     await caches.open(cacheName).then(cache => cache.addAll(assetsRequests));
+
+    // Activate the new version right away instead of waiting until every tab/PWA window is closed.
+    // index.html reloads the page once the new worker takes control.
+    await self.skipWaiting();
 }
 
 async function onActivate(event) {
@@ -35,6 +39,9 @@ async function onActivate(event) {
     await Promise.all(cacheKeys
         .filter(key => key.startsWith(cacheNamePrefix) && key !== cacheName)
         .map(key => caches.delete(key)));
+
+    // Take control of already open pages so they switch to the new version.
+    await self.clients.claim();
 }
 
 async function onFetch(event) {
