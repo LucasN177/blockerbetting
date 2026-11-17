@@ -1,0 +1,24 @@
+<MudChip T="string" Size="Size.Small" Color="@ColorFor" Variant="Variant.Outlined">@Label</MudChip>
+
+@code {
+    [Parameter, EditorRequired] public BetEvent Event { get; set; } = default!;
+
+    private bool Closed => Event.Status == EventStatus.Open && !Event.AcceptsBets;
+
+    private string Label => Closed ? "Wettschluss" : Event.Status switch
+    {
+        EventStatus.Open => "Offen",
+        EventStatus.Locked => "Gesperrt",
+        EventStatus.Resolved => "Aufgelöst",
+        EventStatus.Cancelled => "Abgebrochen",
+        _ => Event.Status,
+    };
+
+    private Color ColorFor => Closed ? Color.Warning : Event.Status switch
+    {
+        EventStatus.Open => Color.Success,
+        EventStatus.Locked => Color.Warning,
+        EventStatus.Resolved => Color.Info,
+        _ => Color.Default,
+    };
+}

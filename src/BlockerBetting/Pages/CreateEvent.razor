@@ -1,0 +1,89 @@
+@page "/admin/new-event"
+@inject BettingService Betting
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Event anlegen · BlockerBetting</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Event anlegen</MudText>
+
+@if (Betting.CurrentProfile?.IsAdmin != true)
+{
+    <MudAlert Severity="Severity.Warning">Nur Admins können Events anlegen.</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-4" Elevation="2" Style="max-width:48rem">
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_title" Label="Titel" Required="true" MaxLength="200" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField @bind-Value="_description" Label="Beschreibung (optional)" Lines="3" Variant="Variant.Outlined" Class="mb-3" />
+
+            <MudStack Row="true" Spacing="2" Class="mb-3">
+                <MudDatePicker @bind-Date="_closesDate" Label="Wettschluss – Datum (optional)" Variant="Variant.Outlined" Clearable="true" />
+                <MudTimePicker @bind-Time="_closesTime" Label="Uhrzeit" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Optionen</MudText>
+            @for (var i = 0; i < _options.Count; i++)
+            {
+                var index = i;
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudTextField @bind-Value="_options[index]" Label="@($"Option {index + 1}")" Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="100" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Disabled="@(_options.Count <= 2)" OnClick="@(() => _options.RemoveAt(index))" aria-label="Option entfernen" />
+                </MudStack>
+            }
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" OnClick="@(() => _options.Add(""))" Class="mb-4">Option hinzufügen</MudButton>
+
+            <MudDivider Class="mb-4" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="Create">Event anlegen</MudButton>
+        </MudForm>
+    </MudPaper>
+}
+
+@code {
+    private MudForm? _form;
+    private string _title = "";
+    private string? _description;
+    private DateTime? _closesDate;
+    private TimeSpan? _closesTime = new(18, 0, 0);
+    private readonly List<string> _options = ["Ja", "Nein"];
+    private bool _busy;
+
+    private async Task Create()
+    {
+        await _form!.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        var options = _options.Select(o => o.Trim()).Where(o => o.Length > 0).Distinct().ToList();
+        if (options.Count < 2)
+        {
+            Snackbar.Add("Bitte mindestens zwei unterschiedliche Optionen angeben.", Severity.Warning);
+            return;
+        }
+
+        DateTime? closesAtUtc = _closesDate is { } date
+            ? DateTime.SpecifyKind(date.Date + (_closesTime ?? TimeSpan.Zero), DateTimeKind.Local).ToUniversalTime()
+            : null;
+        if (closesAtUtc <= DateTime.UtcNow)
+        {
+            Snackbar.Add("Der Wettschluss muss in der Zukunft liegen.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var id = await Betting.CreateEventAsync(_title.Trim(), _description, closesAtUtc, options);
+            Snackbar.Add("Event angelegt.", Severity.Success);
+            Nav.NavigateTo($"events/{id}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

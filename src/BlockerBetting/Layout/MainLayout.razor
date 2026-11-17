@@ -1,0 +1,73 @@
+@inherits LayoutComponentBase
+@implements IDisposable
+@inject BettingService Betting
+@inject NavigationManager Nav
+
+<MudThemeProvider Theme="_theme" @bind-IsDarkMode="_darkMode" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="1">
+        <AuthorizeView>
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@(() => _drawerOpen = !_drawerOpen)" />
+        </AuthorizeView>
+        <MudText Typo="Typo.h6" Class="ml-2">🎲 BlockerBetting</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            @if (Betting.CurrentProfile is { } profile)
+            {
+                <MudChip T="string" Icon="@Icons.Material.Filled.MonetizationOn" Color="Color.Secondary" Variant="Variant.Filled">
+                    @profile.Coins.ToString("N0")
+                </MudChip>
+            }
+        </AuthorizeView>
+        <MudIconButton Icon="@(_darkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)" Color="Color.Inherit" OnClick="@(() => _darkMode = !_darkMode)" />
+        <AuthorizeView>
+            <MudIconButton Icon="@Icons.Material.Filled.Logout" Color="Color.Inherit" OnClick="SignOut" aria-label="Abmelden" />
+        </AuthorizeView>
+    </MudAppBar>
+    <AuthorizeView>
+        <MudDrawer @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2" Variant="@DrawerVariant.Responsive">
+            <NavMenu />
+        </MudDrawer>
+    </AuthorizeView>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    private bool _drawerOpen = true;
+    private bool _darkMode;
+
+    private readonly MudTheme _theme = new()
+    {
+        PaletteLight = new PaletteLight
+        {
+            Primary = "#3f51b5",
+            Secondary = "#f9a825",
+            AppbarBackground = "#1a237e",
+        },
+        PaletteDark = new PaletteDark
+        {
+            Primary = "#7986cb",
+            Secondary = "#fbc02d",
+        },
+    };
+
+    protected override void OnInitialized() => Betting.ProfileChanged += OnProfileChanged;
+
+    private void OnProfileChanged() => InvokeAsync(StateHasChanged);
+
+    private async Task SignOut()
+    {
+        await Betting.SignOutAsync();
+        Nav.NavigateTo("login");
+    }
+
+    public void Dispose() => Betting.ProfileChanged -= OnProfileChanged;
+}

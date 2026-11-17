@@ -1,0 +1,46 @@
+@page "/leaderboard"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+<PageTitle>Rangliste · BlockerBetting</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Rangliste</MudText>
+
+@if (_profiles is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="_profiles" Hover="true" Elevation="2" Dense="true">
+        <HeaderContent>
+            <MudTh Style="width:4rem">#</MudTh>
+            <MudTh>Spieler</MudTh>
+            <MudTh Style="text-align:right">Coins</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            @{ var rank = _profiles.IndexOf(context) + 1; }
+            <MudTd DataLabel="#">@(rank switch { 1 => "🥇", 2 => "🥈", 3 => "🥉", _ => rank.ToString() })</MudTd>
+            <MudTd DataLabel="Spieler">
+                <MudText Typo="Typo.body2" Style="@(context.Id == Betting.CurrentUserId ? "font-weight:700" : "")">
+                    @context.DisplayName @(context.Id == Betting.CurrentUserId ? "(du)" : "")
+                </MudText>
+            </MudTd>
+            <MudTd DataLabel="Coins" Style="text-align:right">@context.Coins.ToString("N0")</MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<Profile>? _profiles;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _profiles = await Betting.GetLeaderboardAsync(); }
+        catch (Exception ex)
+        {
+            _profiles = [];
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+    }
+}

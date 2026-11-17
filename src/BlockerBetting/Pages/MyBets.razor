@@ -1,0 +1,71 @@
+@page "/my-bets"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+<PageTitle>Meine Wetten · BlockerBetting</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Meine Wetten</MudText>
+
+@if (_rows is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid Class="mb-4">
+        <MudItem xs="6" md="3"><Stat Label="Wetten" Value="@_rows.Count.ToString("N0")" /></MudItem>
+        <MudItem xs="6" md="3"><Stat Label="Eingesetzt" Value="@_rows.Sum(r => r.Bet.Amount).ToString("N0")" /></MudItem>
+        <MudItem xs="6" md="3"><Stat Label="Ausgezahlt" Value="@_rows.Sum(r => r.Bet.Payout ?? 0).ToString("N0")" /></MudItem>
+        <MudItem xs="6" md="3"><Stat Label="Offen" Value="@_rows.Where(r => r.Bet.Payout is null).Sum(r => r.Bet.Amount).ToString("N0")" /></MudItem>
+    </MudGrid>
+
+    <MudTable Items="_rows" Hover="true" Dense="true" Elevation="2">
+        <HeaderContent>
+            <MudTh>Event</MudTh>
+            <MudTh>Tipp</MudTh>
+            <MudTh Style="text-align:right">Einsatz</MudTh>
+            <MudTh Style="text-align:right">Auszahlung</MudTh>
+            <MudTh>Datum</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Event"><MudLink Href="@($"events/{context.Bet.EventId}")">@context.EventTitle</MudLink></MudTd>
+            <MudTd DataLabel="Tipp">@context.OptionLabel</MudTd>
+            <MudTd DataLabel="Einsatz" Style="text-align:right">@context.Bet.Amount.ToString("N0")</MudTd>
+            <MudTd DataLabel="Auszahlung" Style="text-align:right">
+                @if (context.Bet.Payout is { } payout)
+                {
+                    <MudText Typo="Typo.body2" Color="@(payout > context.Bet.Amount ? Color.Success : payout == 0 ? Color.Error : Color.Default)">@payout.ToString("N0")</MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">offen</MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Datum">@context.Bet.CreatedAt.ToLocalTime().ToString("g")</MudTd>
+        </RowTemplate>
+        <NoRecordsContent>Du hast noch keine Wetten platziert.</NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    private record Row(Bet Bet, string EventTitle, string OptionLabel);
+
+    private List<Row>? _rows;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var bets = await Betting.GetMyBetsAsync();
+            var events = await Betting.GetEventsAsync();
+            var titles = events.ToDictionary(e => e.Event.Id, e => e.Event.Title);
+            var labels = events.SelectMany(e => e.Options).ToDictionary(o => o.Id, o => o.Label);
+            _rows = bets.Select(b => new Row(b, titles.GetValueOrDefault(b.EventId, "?"), labels.GetValueOrDefault(b.OptionId, "?"))).ToList();
+        }
+        catch (Exception ex)
+        {
+            _rows = [];
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+    }
+}

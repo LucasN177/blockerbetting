@@ -1,0 +1,45 @@
+@page "/profile"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+<PageTitle>Profil · BlockerBetting</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Profil</MudText>
+
+@if (Betting.CurrentProfile is { } profile)
+{
+    <MudPaper Class="pa-4" Elevation="2" Style="max-width:32rem">
+        <MudText Typo="Typo.body1" Class="mb-4">Guthaben: <b>@profile.Coins.ToString("N0") Coins</b>@(profile.IsAdmin ? " · Admin" : "")</MudText>
+        <MudTextField @bind-Value="_displayName" Label="Anzeigename" MaxLength="40" Variant="Variant.Outlined" Class="mb-3" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(_busy || string.IsNullOrWhiteSpace(_displayName))" OnClick="Save">Speichern</MudButton>
+    </MudPaper>
+}
+else
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+
+@code {
+    private string _displayName = "";
+    private bool _busy;
+
+    protected override void OnInitialized() => _displayName = Betting.CurrentProfile?.DisplayName ?? "";
+
+    private async Task Save()
+    {
+        _busy = true;
+        try
+        {
+            await Betting.UpdateDisplayNameAsync(_displayName.Trim());
+            Snackbar.Add("Gespeichert.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

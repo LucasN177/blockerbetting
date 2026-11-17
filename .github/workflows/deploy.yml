@@ -1,0 +1,69 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  PROJECT_DIR: src/BlockerBetting
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Write Supabase config
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_KEY" ]; then
+            echo "::error::Secrets SUPABASE_URL und SUPABASE_KEY müssen gesetzt sein."
+            exit 1
+          fi
+          jq -n --arg url "$SUPABASE_URL" --arg key "$SUPABASE_KEY" \
+            '{Supabase: {Url: $url, Key: $key}}' > "$PROJECT_DIR/wwwroot/appsettings.json"
+
+      # Set the base href before publishing so the service-worker integrity hashes match.
+      - name: Set base href for GitHub Pages
+        run: |
+          REPO_NAME="${GITHUB_REPOSITORY#*/}"
+          sed -i "s|<base href=\"/\" />|<base href=\"/${REPO_NAME}/\" />|" "$PROJECT_DIR/wwwroot/index.html"
+          grep -q "<base href=\"/${REPO_NAME}/\" />" "$PROJECT_DIR/wwwroot/index.html"
+
+      - name: Publish
+        run: dotnet publish "$PROJECT_DIR" -c Release -o publish
+
+      - name: Prepare SPA hosting
+        run: |
+          cp publish/wwwroot/index.html publish/wwwroot/404.html
+          touch publish/wwwroot/.nojekyll
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: publish/wwwroot
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
