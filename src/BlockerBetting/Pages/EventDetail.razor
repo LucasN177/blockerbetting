@@ -4,7 +4,7 @@
 
 <PageTitle>@(_event?.Event.Title ?? "Wette") · BlockerBetting</PageTitle>
 
-<MudButton Href="" StartIcon="@Icons.Material.Rounded.ArrowBack" Variant="Variant.Text" Color="Color.Default" Class="mb-4" Size="Size.Small">Alle Wetten</MudButton>
+<MudButton Href="./" StartIcon="@Icons.Material.Rounded.ArrowBack" Variant="Variant.Text" Color="Color.Default" Class="mb-4" Size="Size.Small">Alle Wetten</MudButton>
 
 @if (_loading)
 {
@@ -18,7 +18,7 @@ else if (_event is null)
 {
     <div class="bb-card bb-card-pad">
         <MudText Typo="Typo.h6">Wette nicht gefunden</MudText>
-        <MudText Class="bb-muted">Vielleicht wurde sie entfernt. <MudLink Href="">Zur Übersicht</MudLink></MudText>
+        <MudText Class="bb-muted">Vielleicht wurde sie entfernt. <MudLink Href="./">Zur Übersicht</MudLink></MudText>
     </div>
 }
 else
