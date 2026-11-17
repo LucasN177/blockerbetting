@@ -215,6 +215,40 @@ public class BettingService(Supabase.Client client)
 
     public bool IsCreator(BetEvent ev) => ev.CreatedBy is not null && ev.CreatedBy == CurrentUserId;
 
+    // ---------- Games ----------
+
+    /// <summary>
+    /// Plays one roulette round on the server. The profile is NOT refreshed here, so the UI can reveal
+    /// the result (and the new balance) only after the wheel animation – call <see cref="RefreshProfileAsync"/> then.
+    /// </summary>
+    public async Task<SpinResult> PlayRouletteAsync(IEnumerable<RouletteBet> bets)
+    {
+        var payload = bets.Select(b => new Dictionary<string, object?>
+        {
+            ["type"] = b.Type, ["value"] = b.Value, ["amount"] = b.Amount,
+        }).ToList();
+        var response = await client.Rpc("play_roulette", new Dictionary<string, object> { ["p_bets"] = payload });
+        using var doc = JsonDocument.Parse(response.Content!);
+        var root = doc.RootElement;
+        return new SpinResult(
+            root.GetProperty("result").GetInt32(),
+            root.GetProperty("total_stake").GetInt64(),
+            root.GetProperty("payout").GetInt64(),
+            root.GetProperty("coins").GetInt64());
+    }
+
+    public async Task<List<GameRound>> GetRecentRoundsAsync(string game, int limit = 12)
+    {
+        var uid = CurrentUserId;
+        if (uid is null) return [];
+        return (await client.From<GameRound>()
+            .Filter("user_id", Operator.Equals, uid.ToString())
+            .Filter("game", Operator.Equals, game)
+            .Order("created_at", Ordering.Descending)
+            .Limit(limit)
+            .Get()).Models;
+    }
+
     // ---------- Bet requests ----------
 
     /// <summary>Raised when requests were submitted, approved, rejected or withdrawn (e.g. for the admin badge).</summary>

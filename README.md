@@ -22,6 +22,7 @@ Interne Wettplattform für das Team: Jede Person hat einen eigenen Account, star
 | Ersteller-Recht | Der Ersteller einer Wette – bei genehmigten Anfragen der Antragsteller – darf sie **nach dem Wettschluss** selbst auflösen und auszahlen. Admins können jederzeit auflösen. |
 | Tagesbonus | Jeden Morgen um **8:00 Uhr** (deutsche Zeit) erhält jeder Spieler **20 Coins** – per `pg_cron`-Job direkt in Supabase, höchstens einmal pro Tag. |
 | Push-Benachrichtigungen | Admins erhalten eine Push-Nachricht bei neuen Wett-Anfragen, Antragsteller bei Annahme oder Ablehnung – auch im Browser ohne Installation (iPhone: nur als Home-Bildschirm-App). |
+| Spiele (Beta) | Menüpunkt **„Spiele“** mit **Roulette** (europäisch, eine Null): Chips auf Zahlen, Farben, Dutzende usw. setzen und das Rad drehen. Die Zahl wird serverseitig zufällig gezogen, Einsatz und Gewinn in derselben Transaktion verbucht. |
 
 ## Architektur
 
@@ -58,6 +59,7 @@ Die SQL-Dateien in [`supabase/migrations/`](supabase/migrations/) werden im Supa
 | `003_bet_requests.sql` | Wett-Anfragen, Auflösen durch den Ersteller |
 | `004_daily_bonus.sql` | Täglicher Coin-Bonus um 8 Uhr (benötigt die Erweiterung `pg_cron`) |
 | `005_push_notifications.sql` | Push-Abos und Benachrichtigungen bei Wett-Anfragen (benötigt `pg_net` und Vault) |
+| `006_games_roulette.sql` | Spiele (Beta): Roulette mit serverseitiger Ziehung |
 
 ## Push-Benachrichtigungen
 

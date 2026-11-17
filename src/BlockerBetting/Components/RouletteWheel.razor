@@ -1,0 +1,73 @@
+@using System.Globalization
+@* European roulette wheel. Rotation is cumulative degrees; the pocket under the pointer (top) is the result. *@
+
+<div class="bb-wheel @(Spinning ? "bb-wheel-spinning" : "")">
+    <svg viewBox="-110 -110 220 220" role="img" aria-label="@(Result is { } r ? $"Roulette-Rad, Ergebnis {r}" : "Roulette-Rad")">
+        <defs>
+            <radialGradient id="bb-wheel-rim" cx="50%" cy="50%" r="50%">
+                <stop offset="85%" stop-color="#3b2a1a" />
+                <stop offset="100%" stop-color="#1c130b" />
+            </radialGradient>
+            <radialGradient id="bb-wheel-hub" cx="40%" cy="35%" r="70%">
+                <stop offset="0%" stop-color="#fde68a" />
+                <stop offset="100%" stop-color="#b45309" />
+            </radialGradient>
+        </defs>
+
+        <circle r="108" fill="url(#bb-wheel-rim)" />
+        <g class="bb-wheel-rotor" style="transform: rotate(@(F(Rotation))deg)">
+            @for (var i = 0; i < Roulette.WheelOrder.Length; i++)
+            {
+                var number = Roulette.WheelOrder[i];
+                var mid = i * Segment;
+                <path d="@SegmentPath(mid - Segment / 2, mid + Segment / 2, 100, 66)" class="bb-pocket bb-pocket-@Roulette.ColorOf(number)" />
+                @* <text> is a reserved Razor tag inside code blocks, so the SVG label is emitted as markup. *@
+                @((MarkupString)$"<text x=\"0\" y=\"-84\" transform=\"rotate({F(mid)})\" class=\"bb-pocket-label\" text-anchor=\"middle\" dominant-baseline=\"middle\">{number}</text>")
+            }
+            <circle r="66" class="bb-wheel-inner" />
+            @for (var i = 0; i < 8; i++)
+            {
+                <line x1="0" y1="-30" x2="0" y2="-64" transform="rotate(@F(i * 45))" class="bb-wheel-spoke" />
+            }
+        </g>
+        <circle r="30" fill="url(#bb-wheel-hub)" stroke="#78350f" stroke-width="2" />
+        <text x="0" y="1" class="bb-wheel-result @(Result is { } res && !Spinning ? $"bb-wheel-result-{Roulette.ColorOf(res)}" : "")"
+              text-anchor="middle" dominant-baseline="middle">@(Result is { } shown && !Spinning ? shown.ToString() : "")</text>
+        <path d="M 0 -94 L -7 -110 L 7 -110 Z" class="bb-wheel-pointer" />
+    </svg>
+</div>
+
+@code {
+    public static readonly double Segment = 360.0 / 37;
+
+    /// <summary>Cumulative rotation in degrees (only ever grows, so the wheel always spins forward).</summary>
+    [Parameter] public double Rotation { get; set; }
+    [Parameter] public int? Result { get; set; }
+    [Parameter] public bool Spinning { get; set; }
+
+    /// <summary>Rotation that brings <paramref name="number"/> under the pointer after a few full turns.</summary>
+    public static double NextRotation(double current, int number, int extraTurns = 6)
+    {
+        var index = Array.IndexOf(Roulette.WheelOrder, number);
+        var target = -index * Segment;
+        var delta = ((target - current) % 360 + 360) % 360;
+        return current + extraTurns * 360 + delta;
+    }
+
+    private static string F(double value) => value.ToString("0.###", CultureInfo.InvariantCulture);
+
+    private static (double X, double Y) Point(double radius, double degrees)
+    {
+        var rad = degrees * Math.PI / 180;
+        return (radius * Math.Sin(rad), -radius * Math.Cos(rad));
+    }
+
+    private static string SegmentPath(double from, double to, double outer, double inner)
+    {
+        var (x1, y1) = Point(outer, from);
+        var (x2, y2) = Point(outer, to);
+        var (x3, y3) = Point(inner, to);
+        var (x4, y4) = Point(inner, from);
+        return $"M {F(x1)} {F(y1)} A {F(outer)} {F(outer)} 0 0 1 {F(x2)} {F(y2)} L {F(x3)} {F(y3)} A {F(inner)} {F(inner)} 0 0 0 {F(x4)} {F(y4)} Z";
+    }
+}

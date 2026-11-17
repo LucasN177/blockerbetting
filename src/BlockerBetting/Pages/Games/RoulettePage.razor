@@ -1,0 +1,250 @@
+@page "/games/roulette"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+
+<PageTitle>Roulette · BlockerBetting</PageTitle>
+
+<MudButton Href="games" StartIcon="@Icons.Material.Rounded.ArrowBack" Variant="Variant.Text" Color="Color.Default" Size="Size.Small" Class="mb-4">Alle Spiele</MudButton>
+<PageHeader Title="Roulette" Eyebrow="Spiele · Beta"
+            Subtitle="Europäisches Roulette mit einer Null. Chips setzen, Rad drehen – gespielt wird nur mit virtuellen Coins." />
+
+<MudGrid Spacing="4">
+    <MudItem xs="12" md="5">
+        <div class="bb-card bb-card-pad d-flex flex-column align-center">
+            <RouletteWheel Rotation="_rotation" Result="_lastResult" Spinning="_spinning" />
+
+            <div class="bb-roulette-outcome mt-4">
+                @if (_spinning)
+                {
+                    <div class="bb-muted">Das Rad dreht sich …</div>
+                }
+                else if (_last is { } last)
+                {
+                    <div class="bb-roulette-number bb-roulette-@Roulette.ColorOf(last.Result)">@last.Result</div>
+                    <div>
+                        <div style="font-weight:700">@Roulette.ColorName(last.Result)@(last.Result == 0 ? "" : last.Result % 2 == 0 ? " · Gerade" : " · Ungerade")</div>
+                        @if (last.Net > 0)
+                        {
+                            <div class="bb-roulette-win">Gewonnen: +@Fmt.Coins(last.Net) Coins</div>
+                        }
+                        else if (last.Payout > 0)
+                        {
+                            <div class="bb-muted">Zurück: @Fmt.Coins(last.Payout) von @Fmt.Coins(last.TotalStake) Coins</div>
+                        }
+                        else
+                        {
+                            <div class="bb-roulette-loss">Verloren: −@Fmt.Coins(last.TotalStake) Coins</div>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="bb-muted">Setze deine Chips und drehe das Rad.</div>
+                }
+            </div>
+
+            @if (_history.Count > 0)
+            {
+                <div class="bb-section-title mt-6 mb-2" style="align-self:flex-start">Deine letzten Zahlen</div>
+                <div class="bb-roulette-history">
+                    @foreach (var round in _history)
+                    {
+                        <span class="bb-roulette-dot bb-roulette-@Roulette.ColorOf(round.Result)" title="Einsatz @Fmt.Coins(round.TotalStake) · Auszahlung @Fmt.Coins(round.Payout)">@round.Result</span>
+                    }
+                </div>
+            }
+        </div>
+    </MudItem>
+
+    <MudItem xs="12" md="7">
+        <div class="bb-card bb-card-pad">
+            <div class="d-flex align-center flex-wrap gap-2 mb-4">
+                <div class="bb-section-title mb-0">Chip wählen</div>
+                <MudSpacer />
+                <span class="bb-muted" style="font-size:0.85rem">Guthaben&nbsp;<Coins Value="@(Betting.CurrentProfile?.Coins ?? 0)" /></span>
+            </div>
+            <div class="bb-chips mb-5">
+                @foreach (var value in ChipValues)
+                {
+                    <button type="button" class="bb-chip bb-chip-@value @(_chip == value ? "bb-chip-active" : "")" @onclick="() => _chip = value"
+                            aria-pressed="@(_chip == value)" aria-label="@value Coins">@value</button>
+                }
+            </div>
+
+            <div class="bb-table-scroll">
+                <div class="bb-table">
+                    @BetCell("straight", 0, "0", "bb-cell-zero bb-cell-green", "grid-row: 1 / span 3; grid-column: 1;")
+                    @for (var row = 0; row < 3; row++)
+                    {
+                        for (var col = 0; col < 12; col++)
+                        {
+                            var number = col * 3 + (3 - row);
+                            @BetCell("straight", number, number.ToString(), $"bb-cell-{Roulette.ColorOf(number)}", $"grid-row: {row + 1}; grid-column: {col + 2};")
+                        }
+                        var column = 3 - row;
+                        @BetCell("column", column, "2:1", "bb-cell-outside", $"grid-row: {row + 1}; grid-column: 14;")
+                    }
+                    @for (var dozen = 1; dozen <= 3; dozen++)
+                    {
+                        @BetCell("dozen", dozen, Roulette.Label("dozen", dozen), "bb-cell-outside", $"grid-row: 4; grid-column: {(dozen - 1) * 4 + 2} / span 4;")
+                    }
+                    @BetCell("low", null, "1–18", "bb-cell-outside", "grid-row: 5; grid-column: 2 / span 2;")
+                    @BetCell("even", null, "Gerade", "bb-cell-outside", "grid-row: 5; grid-column: 4 / span 2;")
+                    @BetCell("red", null, "Rot", "bb-cell-outside bb-cell-red", "grid-row: 5; grid-column: 6 / span 2;")
+                    @BetCell("black", null, "Schwarz", "bb-cell-outside bb-cell-black", "grid-row: 5; grid-column: 8 / span 2;")
+                    @BetCell("odd", null, "Ungerade", "bb-cell-outside", "grid-row: 5; grid-column: 10 / span 2;")
+                    @BetCell("high", null, "19–36", "bb-cell-outside", "grid-row: 5; grid-column: 12 / span 2;")
+                </div>
+            </div>
+
+            <div class="d-flex align-center flex-wrap gap-2 mt-5">
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Rounded.Undo"
+                           Disabled="@(_spinning || _undo.Count == 0)" OnClick="Undo">Rückgängig</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Rounded.DeleteSweep"
+                           Disabled="@(_spinning || _placed.Count == 0)" OnClick="Clear">Leeren</MudButton>
+                <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" StartIcon="@Icons.Material.Rounded.Replay"
+                           Disabled="@(_spinning || _lastBets.Count == 0)" OnClick="Repeat">Wiederholen</MudButton>
+                <MudSpacer />
+                <div style="text-align:right">
+                    <div class="bb-muted" style="font-size:0.75rem">Einsatz</div>
+                    <Coins Value="TotalStake" Style="font-size:1.15rem" />
+                </div>
+            </div>
+
+            <MudButton Variant="Variant.Filled" FullWidth="true" Class="bb-cta mt-4" OnClick="Spin"
+                       Disabled="@(_spinning || TotalStake <= 0 || TotalStake > (Betting.CurrentProfile?.Coins ?? 0))">
+                @if (_spinning) { <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" Style="color:inherit" /> }
+                @(TotalStake > (Betting.CurrentProfile?.Coins ?? 0) ? "Nicht genug Coins" : "Rad drehen")
+            </MudButton>
+
+            <MudText Typo="Typo.caption" Class="bb-muted mt-3 d-block">
+                Auszahlung inkl. Einsatz: Zahl 36×, Dutzend/Kolonne 3×, Rot/Schwarz/Gerade/Ungerade/1–18/19–36 2×. Bei 0 verlieren alle Außenwetten.
+            </MudText>
+        </div>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private static readonly int[] ChipValues = [1, 5, 10, 25, 100, 500];
+
+    private int _chip = 10;
+    private readonly Dictionary<string, RouletteBet> _placed = [];
+    private readonly Stack<(string Key, RouletteBet? Before)> _undo = new();
+    private List<RouletteBet> _lastBets = [];
+    private List<GameRound> _history = [];
+
+    private double _rotation;
+    private bool _spinning;
+    private int? _lastResult;
+    private SpinResult? _last;
+
+    private long TotalStake => _placed.Values.Sum(b => b.Amount);
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { _history = await Betting.GetRecentRoundsAsync("roulette"); }
+        catch { /* history is optional */ }
+        if (_history.FirstOrDefault() is { } latest)
+        {
+            _lastResult = latest.Result;
+            _rotation = RouletteWheel.NextRotation(0, latest.Result, 0);
+        }
+    }
+
+    private RenderFragment BetCell(string type, int? value, string label, string css, string style) => __builder =>
+    {
+        var key = Roulette.Key(type, value);
+        _placed.TryGetValue(key, out var bet);
+        var won = !_spinning && _last is { } last && Roulette.Factor(type, value, last.Result) > 0;
+        var hit = !_spinning && _last is { } l && type == "straight" && value == l.Result;
+        <button type="button" class="bb-cell @css @(won ? "bb-cell-won" : "") @(hit ? "bb-cell-hit" : "")" style="@style"
+                disabled="@_spinning" @onclick="() => Place(type, value)" @oncontextmenu="() => Remove(type, value)" @oncontextmenu:preventDefault="true"
+                title="@($"{Roulette.Label(type, value)} – Auszahlung {Roulette.Factor(type, value, type == "straight" ? value!.Value : FirstWinning(type, value))}×")">
+            <span>@label</span>
+            @if (bet is not null)
+            {
+                <span class="bb-cell-chip bb-chip-@ChipColor(bet.Amount)">@ShortAmount(bet.Amount)</span>
+            }
+        </button>
+    };
+
+    /// <summary>Any result that wins for the bet – only used to show its payout factor in the tooltip.</summary>
+    private static int FirstWinning(string type, int? value) =>
+        Enumerable.Range(1, 36).First(n => Roulette.Factor(type, value, n) > 0);
+
+    private static int ChipColor(long amount) => ChipValues.LastOrDefault(v => v <= amount, 1);
+
+    private static string ShortAmount(long amount) => amount >= 1000 ? $"{amount / 1000.0:0.#}k" : amount.ToString();
+
+    private void Place(string type, int? value)
+    {
+        if (_spinning) return;
+        var key = Roulette.Key(type, value);
+        _placed.TryGetValue(key, out var before);
+        _undo.Push((key, before));
+        _placed[key] = new RouletteBet(type, value, (before?.Amount ?? 0) + _chip);
+        _last = null;
+    }
+
+    /// <summary>Right click removes one chip of the selected value from the field.</summary>
+    private void Remove(string type, int? value)
+    {
+        var key = Roulette.Key(type, value);
+        if (_spinning || !_placed.TryGetValue(key, out var before)) return;
+        _undo.Push((key, before));
+        var remaining = before.Amount - _chip;
+        if (remaining > 0) _placed[key] = before with { Amount = remaining };
+        else _placed.Remove(key);
+    }
+
+    private void Undo()
+    {
+        if (!_undo.TryPop(out var step)) return;
+        if (step.Before is null) _placed.Remove(step.Key);
+        else _placed[step.Key] = step.Before;
+    }
+
+    private void Clear()
+    {
+        _placed.Clear();
+        _undo.Clear();
+    }
+
+    private void Repeat()
+    {
+        Clear();
+        foreach (var bet in _lastBets) _placed[bet.Key] = bet;
+        _last = null;
+    }
+
+    private async Task Spin()
+    {
+        if (_spinning || _placed.Count == 0) return;
+        var bets = _placed.Values.ToList();
+        _spinning = true;
+        _last = null;
+        try
+        {
+            var result = await Betting.PlayRouletteAsync(bets);
+            _rotation = RouletteWheel.NextRotation(_rotation, result.Result);
+            StateHasChanged();
+            await Task.Delay(4600); // matches the CSS transition of the wheel
+
+            _lastResult = result.Result;
+            _last = result;
+            _lastBets = bets;
+            _placed.Clear();
+            _undo.Clear();
+            await Betting.RefreshProfileAsync();
+            try { _history = await Betting.GetRecentRoundsAsync("roulette"); } catch { }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _spinning = false;
+        }
+    }
+}

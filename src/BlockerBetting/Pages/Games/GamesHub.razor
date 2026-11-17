@@ -1,0 +1,45 @@
+@page "/games"
+
+<PageTitle>Spiele · BlockerBetting</PageTitle>
+
+<PageHeader Title="Spiele" Eyebrow="Beta" Subtitle="Schnelle Runden für zwischendurch – gespielt wird nur mit virtuellen Coins." />
+
+<MudGrid Spacing="3">
+    <MudItem xs="12" sm="6" lg="4">
+        <a href="games/roulette" class="bb-card bb-hover bb-game-card">
+            <div class="bb-game-art bb-game-art-roulette">
+                <svg viewBox="-50 -50 100 100" aria-hidden="true">
+                    @for (var i = 0; i < 18; i++)
+                    {
+                        <path d="M 0 -44 A 44 44 0 0 1 @(F(44 * Math.Sin(20 * Math.PI / 180))) @(F(-44 * Math.Cos(20 * Math.PI / 180))) L 0 0 Z"
+                              transform="rotate(@(i * 20))" fill="@(i == 0 ? "#16a34a" : i % 2 == 0 ? "#dc2626" : "#111827")" />
+                    }
+                    <circle r="22" fill="#3b2a1a" />
+                    <circle r="12" fill="#f59e0b" />
+                </svg>
+            </div>
+            <div class="pa-5">
+                <div class="d-flex align-center gap-2">
+                    <div style="font-weight:800; font-size:1.15rem">Roulette</div>
+                    <span class="bb-pill bb-tint-primary">Beta</span>
+                </div>
+                <div class="bb-muted mt-1" style="font-size:0.88rem">Setze auf Zahlen, Farben oder Dutzende – bis zu 36× Auszahlung.</div>
+            </div>
+        </a>
+    </MudItem>
+    <MudItem xs="12" sm="6" lg="4">
+        <div class="bb-card bb-game-card bb-game-card-soon">
+            <div class="bb-game-art d-flex align-center justify-center">
+                <MudIcon Icon="@Icons.Material.Rounded.Casino" Style="font-size:3.5rem; opacity:0.35" />
+            </div>
+            <div class="pa-5">
+                <div style="font-weight:800; font-size:1.15rem">Weitere Spiele</div>
+                <div class="bb-muted mt-1" style="font-size:0.88rem">Kommen bald. Ideen? Gern beim Admin melden.</div>
+            </div>
+        </div>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private static string F(double v) => v.ToString("0.###", System.Globalization.CultureInfo.InvariantCulture);
+}
