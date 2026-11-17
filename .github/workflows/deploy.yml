@@ -39,12 +39,17 @@ jobs:
           jq -n --arg url "$SUPABASE_URL" --arg key "$SUPABASE_KEY" \
             '{Supabase: {Url: $url, Key: $key}}' > "$PROJECT_DIR/wwwroot/appsettings.json"
 
-      # Set the base href before publishing so the service-worker integrity hashes match.
-      - name: Set base href for GitHub Pages
+      # Patch index.html before publishing so the service-worker integrity hashes match.
+      - name: Set base href and version in index.html
         run: |
           REPO_NAME="${GITHUB_REPOSITORY#*/}"
-          sed -i "s|<base href=\"/\" />|<base href=\"/${REPO_NAME}/\" />|" "$PROJECT_DIR/wwwroot/index.html"
-          grep -q "<base href=\"/${REPO_NAME}/\" />" "$PROJECT_DIR/wwwroot/index.html"
+          VERSION="$(dotnet msbuild "$PROJECT_DIR" -getProperty:Version)"
+          INDEX="$PROJECT_DIR/wwwroot/index.html"
+          sed -i "s|<base href=\"/\" />|<base href=\"/${REPO_NAME}/\" />|" "$INDEX"
+          sed -i "s|<meta name=\"app-version\" content=\"dev\" />|<meta name=\"app-version\" content=\"${VERSION}\" />|" "$INDEX"
+          grep -q "<base href=\"/${REPO_NAME}/\" />" "$INDEX"
+          grep -q "<meta name=\"app-version\" content=\"${VERSION}\" />" "$INDEX"
+          echo "Version: ${VERSION}"
 
       - name: Publish
         run: dotnet publish "$PROJECT_DIR" -c Release -o publish

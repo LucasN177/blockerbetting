@@ -8,11 +8,11 @@ self.addEventListener('fetch', event => event.respondWith(onFetch(event)));
 
 const cacheNamePrefix = 'offline-cache-';
 const cacheName = `${cacheNamePrefix}${self.assetsManifest.version}`;
-const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.blat$/, /\.dat$/, /\.webmanifest$/ ];
+const offlineAssetsInclude = [ /\.dll$/, /\.pdb$/, /\.wasm/, /\.html/, /\.js$/, /\.json$/, /\.css$/, /\.woff$/, /\.png$/, /\.jpe?g$/, /\.gif$/, /\.ico$/, /\.svg$/, /\.blat$/, /\.dat$/, /\.webmanifest$/ ];
 const offlineAssetsExclude = [ /^service-worker\.js$/ ];
 
-// Replace with your base path if you are hosting on a subfolder. Ensure there is a trailing '/'.
-const base = "/";
+// Resolve the base path from the service worker location (works on GitHub Pages sub-paths).
+const base = new URL('./', self.location.href).pathname;
 const baseUrl = new URL(base, self.origin);
 const manifestUrlList = self.assetsManifest.assets.map(asset => new URL(asset.url, baseUrl).href);
 

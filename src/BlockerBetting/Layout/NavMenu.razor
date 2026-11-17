@@ -1,17 +1,22 @@
 @implements IDisposable
 @inject BettingService Betting
 
-<MudNavMenu Class="pt-2">
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Casino">Events</MudNavLink>
-    <MudNavLink Href="my-bets" Icon="@Icons.Material.Filled.ReceiptLong">Meine Wetten</MudNavLink>
-    <MudNavLink Href="leaderboard" Icon="@Icons.Material.Filled.EmojiEvents">Rangliste</MudNavLink>
-    <MudNavLink Href="profile" Icon="@Icons.Material.Filled.Person">Profil</MudNavLink>
-    @if (Betting.CurrentProfile?.IsAdmin == true)
-    {
-        <MudDivider Class="my-2" />
-        <MudNavLink Href="admin/bets" Icon="@Icons.Material.Filled.AdminPanelSettings">Wetten verwalten</MudNavLink>
-    }
-</MudNavMenu>
+<div class="nav-drawer-content">
+    <MudNavMenu Class="pt-2">
+        <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Casino">Events</MudNavLink>
+        <MudNavLink Href="my-bets" Icon="@Icons.Material.Filled.ReceiptLong">Meine Wetten</MudNavLink>
+        <MudNavLink Href="leaderboard" Icon="@Icons.Material.Filled.EmojiEvents">Rangliste</MudNavLink>
+        <MudNavLink Href="profile" Icon="@Icons.Material.Filled.Person">Profil</MudNavLink>
+        @if (Betting.CurrentProfile?.IsAdmin == true)
+        {
+            <MudDivider Class="my-2" />
+            <MudNavLink Href="admin/bets" Icon="@Icons.Material.Filled.AdminPanelSettings">Wetten verwalten</MudNavLink>
+        }
+    </MudNavMenu>
+    <footer class="nav-footer">
+        v@(AppInfo.Version) · by @AppInfo.Author
+    </footer>
+</div>
 
 @code {
     protected override void OnInitialized() => Betting.ProfileChanged += Refresh;
