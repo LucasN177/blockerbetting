@@ -1,0 +1,86 @@
+@page "/changelog"
+@attribute [AllowAnonymous]
+
+<PageTitle>Changelog · BlockerBetting</PageTitle>
+
+<PageHeader Title="Changelog" Eyebrow="Was ist neu?" Subtitle="@($"Du nutzt Version {AppInfo.Version}.")" />
+
+@if (_error is not null)
+{
+    <MudAlert Severity="Severity.Warning">Der Changelog konnte nicht geladen werden: @_error</MudAlert>
+}
+else if (_releases is null)
+{
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="300px" Style="border-radius:20px" />
+}
+else
+{
+    <div class="bb-changelog">
+        @foreach (var release in _releases)
+        {
+            var isCurrent = release.Version == AppInfo.Version;
+            <article class="bb-release">
+                <div class="bb-release-dot @(isCurrent ? "bb-release-dot-current" : "")"></div>
+                <div class="bb-card bb-card-pad bb-release-card @(isCurrent ? "bb-release-current" : "")">
+                    <div class="d-flex align-center flex-wrap gap-2 mb-2">
+                        <span class="bb-release-version">v@(release.Version)</span>
+                        @if (isCurrent)
+                        {
+                            <span class="bb-pill bb-tint-primary">Deine Version</span>
+                        }
+                        <MudSpacer />
+                        @if (release.Date is not null)
+                        {
+                            <span class="bb-muted" style="font-size:0.8rem">@release.Date</span>
+                        }
+                    </div>
+                    @foreach (var section in release.Sections)
+                    {
+                        @if (!string.IsNullOrEmpty(section.Title))
+                        {
+                            <div class="bb-release-section">
+                                <span class="bb-pill @SectionTint(section.Title)">@section.Title</span>
+                            </div>
+                        }
+                        <ul class="bb-release-list">
+                            @foreach (var item in section.Items)
+                            {
+                                <li>@((MarkupString)item)</li>
+                            }
+                        </ul>
+                    }
+                    @foreach (var note in release.Notes)
+                    {
+                        <div class="bb-release-note">@((MarkupString)note)</div>
+                    }
+                </div>
+            </article>
+        }
+    </div>
+}
+
+@code {
+    private List<Changelog.Release>? _releases;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        try
+        {
+            _releases = Changelog.Load();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private static string SectionTint(string title) => title.ToLowerInvariant() switch
+    {
+        "neu" => "bb-tint-success",
+        "verbessert" => "bb-tint-info",
+        "behoben" => "bb-tint-warning",
+        "sicherheit" => "bb-tint-primary",
+        _ => "bb-pill-neutral",
+    };
+}

@@ -48,6 +48,14 @@ Die App ist rein statisch – es gibt keinen eigenen Server. Sämtliche Geschäf
 - Jeden Morgen um 8 Uhr gibt es 20 Coins Tagesbonus.
 - Vorgeschlagene Wetten gehen erst nach Freigabe durch einen Admin online. Der Antragsteller entscheidet sie nach dem Wettschluss.
 
+## Changelog und Versionen
+
+Alle Änderungen stehen in [`CHANGELOG.md`](CHANGELOG.md). Die Datei wird beim Build in die App eingebettet und ist dort unter **Navigation → Versionsnummer** (`/changelog`) zu sehen.
+
+Für ein neues Release:
+1. `<Version>` in `src/BlockerBetting/BlockerBetting.csproj` erhöhen.
+2. Oben in `CHANGELOG.md` einen Abschnitt `## <Version> – <Datum>` mit `### Neu` / `### Verbessert` / `### Behoben` ergänzen (bei SQL-Änderungen eine Zeile `**Datenbank:** ...`).
+
 ## Datenbank-Migrationen
 
 Die SQL-Dateien in [`supabase/migrations/`](supabase/migrations/) werden im Supabase SQL Editor **in numerischer Reihenfolge** ausgeführt; bei Updates nur die neuen:
