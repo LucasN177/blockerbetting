@@ -26,6 +26,7 @@ builder.Services.AddSingleton(sp => new Supabase.Client(supabaseUrl, supabaseKey
 builder.Services.AddSingleton<BettingService>();
 builder.Services.AddSingleton<ThemeService>();
 builder.Services.AddSingleton<PushService>();
+builder.Services.AddSingleton<PoorModeService>();
 builder.Services.AddAuthorizationCore();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<SupabaseAuthStateProvider>();
@@ -34,6 +35,7 @@ builder.Services.AddSingleton<AuthenticationStateProvider>(sp => sp.GetRequiredS
 var host = builder.Build();
 
 host.Services.GetRequiredService<ThemeService>().Initialize();
+host.Services.GetRequiredService<PoorModeService>().Initialize();
 
 // Restore a persisted session (refreshes the token if needed).
 var supabase = host.Services.GetRequiredService<Supabase.Client>();

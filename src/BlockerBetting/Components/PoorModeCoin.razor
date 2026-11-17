@@ -1,0 +1,96 @@
+@implements IDisposable
+@inject PoorModeService PoorMode
+@inject BettingService Betting
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+@* Spawns a collectable coin at a random spot every 60 s while Poor Mode is on and a games page is open. *@
+@if (_coin is { } coin && Active)
+{
+    <button type="button" class="bb-poor-coin" style="left:@(coin.X)vw; top:@(coin.Y)vh" disabled="@_claiming"
+            @onclick="Claim" aria-label="Coin einsammeln">
+        <span class="bb-coin"></span>
+    </button>
+}
+@foreach (var pop in _pops)
+{
+    <span @key="pop.Id" class="bb-poor-pop" style="left:@(pop.X)vw; top:@(pop.Y)vh">+@pop.Amount</span>
+}
+
+@code {
+    private record Spot(double X, double Y);
+    private record Pop(Guid Id, double X, double Y, long Amount);
+
+    private Spot? _coin;
+    private readonly List<Pop> _pops = [];
+    private bool _claiming;
+    private PeriodicTimer? _timer;
+
+    /// <summary>Only on the games pages (hub, roulette, blackjack …) and only while Poor Mode is on.</summary>
+    private bool Active => PoorMode.Enabled && Nav.ToBaseRelativePath(Nav.Uri).StartsWith("games", StringComparison.OrdinalIgnoreCase);
+
+    protected override void OnInitialized()
+    {
+        PoorMode.Changed += Refresh;
+        Nav.LocationChanged += OnLocationChanged;
+        _ = Loop();
+    }
+
+    private async Task Loop()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await _timer.WaitForNextTickAsync())
+            {
+                if (Active && _coin is null && DateTime.UtcNow >= PoorMode.NextSpawnAt)
+                {
+                    // Random spot: keep clear of the edges and the app bar.
+                    _coin = new Spot(Random.Shared.Next(4, 90), Random.Shared.Next(14, 84));
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private async Task Claim()
+    {
+        if (_coin is not { } spot || _claiming) return;
+        _claiming = true;
+        try
+        {
+            var amount = await Betting.ClaimPoorModeCoinAsync();
+            _coin = null;
+            var pop = new Pop(Guid.NewGuid(), spot.X, spot.Y, amount);
+            _pops.Add(pop);
+            PoorMode.ScheduleNext();
+            StateHasChanged();
+            await Task.Delay(1200);
+            _pops.Remove(pop);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _claiming = false;
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e) => InvokeAsync(StateHasChanged);
+
+    private void Refresh()
+    {
+        if (!PoorMode.Enabled) _coin = null;
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        PoorMode.Changed -= Refresh;
+        Nav.LocationChanged -= OnLocationChanged;
+        _timer?.Dispose();
+    }
+}

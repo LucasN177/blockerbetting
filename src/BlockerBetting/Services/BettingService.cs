@@ -249,6 +249,16 @@ public class BettingService(Supabase.Client client)
             .Get()).Models;
     }
 
+    /// <summary>Collects a poor-mode coin (the server allows one per minute). Returns the amount credited.</summary>
+    public async Task<long> ClaimPoorModeCoinAsync()
+    {
+        var response = await client.Rpc("claim_poor_mode_coin", new Dictionary<string, object>());
+        using var doc = JsonDocument.Parse(response.Content!);
+        var amount = doc.RootElement.GetProperty("amount").GetInt64();
+        await RefreshProfileAsync();
+        return amount;
+    }
+
     // Blackjack – every action returns the visible state; the profile is refreshed by the page after its animation.
 
     public Task<BlackjackState?> BlackjackCurrentAsync() => BlackjackRpc("blackjack_current", new Dictionary<string, object>());

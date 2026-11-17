@@ -3,6 +3,14 @@
 Alle wichtigen Änderungen an BlockerBetting. Die Versionsnummer steht unten in der Navigation.
 Einträge mit **Datenbank** brauchen eine SQL-Migration aus `supabase/migrations/`.
 
+## 1.9.0 – 17.11.2026
+
+### Neu
+- **Poor Mode** bei den Spielen: einschalten, und alle 60 Sekunden erscheint irgendwo auf dem Bildschirm ein Coin. Anklicken schreibt ihn deinem Konto gut.
+- Countdown bis zum nächsten Coin direkt am Schalter; die Einstellung merkt sich das Gerät.
+
+**Datenbank:** `008_poor_mode.sql`
+
 ## 1.8.1 – 17.11.2026
 
 ### Neu

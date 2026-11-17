@@ -1,0 +1,59 @@
+@implements IDisposable
+@inject PoorModeService PoorMode
+
+@* Poor Mode switch with countdown to the next coin. *@
+<div class="bb-card bb-poor-toggle @(PoorMode.Enabled ? "bb-poor-toggle-on" : "") @Class">
+    <span class="bb-coin bb-poor-toggle-coin"></span>
+    <div class="bb-grow">
+        <div style="font-weight:700">Poor Mode</div>
+        <div class="bb-muted" style="font-size:0.8rem">
+            @if (PoorMode.Enabled && SecondsLeft == 0)
+            {
+                <span><b>Ein Coin ist da</b> – schnapp ihn dir, bevor du weiterspielst!</span>
+            }
+            else if (PoorMode.Enabled)
+            {
+                <span>Nächster Coin in <b class="bb-num">@SecondsLeft s</b> – irgendwo auf dem Bildschirm.</span>
+            }
+            else
+            {
+                <span>Pleite? Alle 60 Sekunden erscheint ein Coin zum Einsammeln.</span>
+            }
+        </div>
+    </div>
+    <MudSwitch T="bool" Value="PoorMode.Enabled" ValueChanged="@(_ => PoorMode.Toggle())" Color="Color.Secondary" aria-label="Poor Mode" />
+</div>
+
+@code {
+    [Parameter] public string? Class { get; set; }
+
+    private PeriodicTimer? _timer;
+
+    private int SecondsLeft => Math.Max(0, (int)Math.Ceiling((PoorMode.NextSpawnAt - DateTime.UtcNow).TotalSeconds));
+
+    protected override void OnInitialized()
+    {
+        PoorMode.Changed += Refresh;
+        _ = Tick();
+    }
+
+    // Re-render once per second for the countdown.
+    private async Task Tick()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(1));
+        try
+        {
+            while (await _timer.WaitForNextTickAsync())
+                if (PoorMode.Enabled) await InvokeAsync(StateHasChanged);
+        }
+        catch (ObjectDisposedException) { }
+    }
+
+    private void Refresh() => InvokeAsync(StateHasChanged);
+
+    public void Dispose()
+    {
+        PoorMode.Changed -= Refresh;
+        _timer?.Dispose();
+    }
+}
