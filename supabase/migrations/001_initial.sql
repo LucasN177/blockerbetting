@@ -1,5 +1,5 @@
 -- =====================================================================
--- BlockerBetting – Supabase schema
+-- BlockerBetting – Migration 001: Grundschema
 -- Run this once in the Supabase SQL editor. It is idempotent where
 -- practical (create ... if not exists / create or replace).
 -- =====================================================================

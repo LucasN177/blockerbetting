@@ -1,0 +1,185 @@
+@page "/admin/bets/new"
+@page "/admin/bets/{Id:guid}"
+@inject BettingService Betting
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>@(IsNew ? "Neue Wette" : "Wette bearbeiten") · BlockerBetting</PageTitle>
+
+<MudButton Href="admin/bets" StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" Class="mb-2">Wetten verwalten</MudButton>
+<MudText Typo="Typo.h4" Class="mb-4">@(IsNew ? "Neue Wette" : "Wette bearbeiten")</MudText>
+
+@if (Betting.CurrentProfile?.IsAdmin != true)
+{
+    <MudAlert Severity="Severity.Warning">Nur Admins können Wetten verwalten.</MudAlert>
+}
+else if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else if (_readOnlyReason is not null)
+{
+    <MudAlert Severity="Severity.Info">@_readOnlyReason</MudAlert>
+}
+else
+{
+    <MudPaper Class="pa-4" Elevation="2" Style="max-width:56rem">
+        <MudForm @ref="_form">
+            <MudTextField @bind-Value="_title" Label="Titel" Required="true" RequiredError="Titel fehlt" MaxLength="200" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField @bind-Value="_description" Label="Beschreibung / Regeln (optional)" Lines="3" Variant="Variant.Outlined" Class="mb-3" />
+
+            <MudStack Row="true" Spacing="2" Class="mb-4">
+                <MudDatePicker @bind-Date="_closesDate" Label="Wettschluss – Datum (optional)" Variant="Variant.Outlined" Clearable="true" />
+                <MudTimePicker @bind-Time="_closesTime" Label="Uhrzeit" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudText Typo="Typo.subtitle1">Optionen & Quoten</MudText>
+            <MudText Typo="Typo.caption" Class="mb-3 d-block">
+                Auszahlung bei Gewinn = Einsatz × Quote. Quotenänderungen gelten nur für neue Wetten – bereits abgegebene Wetten behalten ihre Quote.
+            </MudText>
+
+            @foreach (var option in _options)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                    <MudTextField @bind-Value="option.Label" Label="Option" Variant="Variant.Outlined" Margin="Margin.Dense" MaxLength="100" Required="true" RequiredError="Bezeichnung fehlt" />
+                    <MudNumericField T="decimal" @bind-Value="option.Odds" Label="Quote" Min="1.01m" Max="1000m" Step="0.05m" Format="0.00"
+                                     Variant="Variant.Outlined" Margin="Margin.Dense" Style="max-width:9rem" />
+                    <MudText Typo="Typo.caption" Style="min-width:5rem">@(option.BetCount > 0 ? $"{option.BetCount} Wetten" : "")</MudText>
+                    <MudTooltip Text="@(option.BetCount > 0 ? "Auf diese Option wurde bereits gesetzt" : "Option entfernen")">
+                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Disabled="@(_options.Count <= 2 || option.BetCount > 0)" OnClick="@(() => _options.Remove(option))" />
+                    </MudTooltip>
+                </MudStack>
+            }
+            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" OnClick="@(() => _options.Add(new OptionRow { Odds = 2.00m }))" Class="mb-4">Option hinzufügen</MudButton>
+
+            <MudDivider Class="mb-4" />
+            <MudStack Row="true" Spacing="2">
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_busy" OnClick="Save">@(IsNew ? "Wette anlegen" : "Speichern")</MudButton>
+                <MudButton Href="admin/bets" Variant="Variant.Text">Abbrechen</MudButton>
+            </MudStack>
+        </MudForm>
+    </MudPaper>
+}
+
+@code {
+    [Parameter] public Guid? Id { get; set; }
+
+    private class OptionRow
+    {
+        public Guid? Id { get; init; }
+        public string Label { get; set; } = "";
+        public decimal Odds { get; set; } = 2.00m;
+        public int BetCount { get; init; }
+    }
+
+    private bool IsNew => Id is null;
+
+    private MudForm? _form;
+    private bool _loading = true;
+    private bool _busy;
+    private string? _readOnlyReason;
+    private string _title = "";
+    private string? _description;
+    private DateTime? _closesDate;
+    private TimeSpan? _closesTime = new(18, 0, 0);
+    private List<OptionRow> _options = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        _readOnlyReason = null;
+        if (IsNew)
+        {
+            _options = [new() { Label = "Ja", Odds = 1.80m }, new() { Label = "Nein", Odds = 2.00m }];
+        }
+        else
+        {
+            try
+            {
+                var ev = await Betting.GetEventAsync(Id!.Value);
+                if (ev is null)
+                {
+                    _readOnlyReason = "Wette nicht gefunden.";
+                }
+                else if (ev.Event.Status is not (EventStatus.Open or EventStatus.Locked))
+                {
+                    _readOnlyReason = "Abgeschlossene Wetten können nicht mehr bearbeitet werden.";
+                }
+                else
+                {
+                    _title = ev.Event.Title;
+                    _description = ev.Event.Description;
+                    if (ev.Event.ClosesAt is { } closes)
+                    {
+                        var local = closes.ToLocalTime();
+                        _closesDate = local.Date;
+                        _closesTime = local.TimeOfDay;
+                    }
+                    _options = ev.Options.Select(o => new OptionRow
+                    {
+                        Id = o.Id, Label = o.Label, Odds = o.Odds, BetCount = ev.BetsFor(o.Id),
+                    }).ToList();
+                }
+            }
+            catch (Exception ex)
+            {
+                _readOnlyReason = BettingService.ErrorMessage(ex);
+            }
+        }
+        _loading = false;
+    }
+
+    private async Task Save()
+    {
+        await _form!.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        var options = _options
+            .Select(o => new OptionInput(o.Id, o.Label.Trim(), Math.Round(o.Odds, 2)))
+            .Where(o => o.Label.Length > 0)
+            .ToList();
+        if (options.Count < 2 || options.Select(o => o.Label).Distinct(StringComparer.OrdinalIgnoreCase).Count() != options.Count)
+        {
+            Snackbar.Add("Bitte mindestens zwei Optionen mit unterschiedlichen Bezeichnungen angeben.", Severity.Warning);
+            return;
+        }
+        if (options.Any(o => o.Odds < 1.01m))
+        {
+            Snackbar.Add("Quoten müssen mindestens 1,01 sein.", Severity.Warning);
+            return;
+        }
+
+        DateTime? closesAtUtc = _closesDate is { } date
+            ? DateTime.SpecifyKind(date.Date + (_closesTime ?? TimeSpan.Zero), DateTimeKind.Local).ToUniversalTime()
+            : null;
+        if (IsNew && closesAtUtc <= DateTime.UtcNow)
+        {
+            Snackbar.Add("Der Wettschluss muss in der Zukunft liegen.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (IsNew)
+            {
+                await Betting.CreateEventAsync(_title.Trim(), _description, closesAtUtc, options);
+                Snackbar.Add("Wette angelegt.", Severity.Success);
+            }
+            else
+            {
+                await Betting.UpdateEventAsync(Id!.Value, _title.Trim(), _description, closesAtUtc, options);
+                Snackbar.Add("Änderungen gespeichert.", Severity.Success);
+            }
+            Nav.NavigateTo("admin/bets");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

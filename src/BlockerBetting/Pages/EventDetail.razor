@@ -1,11 +1,10 @@
 @page "/events/{Id:guid}"
 @inject BettingService Betting
 @inject ISnackbar Snackbar
-@inject IDialogService Dialogs
 
-<PageTitle>@(_event?.Event.Title ?? "Event") · BlockerBetting</PageTitle>
+<PageTitle>@(_event?.Event.Title ?? "Wette") · BlockerBetting</PageTitle>
 
-<MudButton Href="" StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" Class="mb-2">Alle Events</MudButton>
+<MudButton Href="" StartIcon="@Icons.Material.Filled.ArrowBack" Variant="Variant.Text" Class="mb-2">Alle Wetten</MudButton>
 
 @if (_loading)
 {
@@ -13,7 +12,7 @@
 }
 else if (_event is null)
 {
-    <MudAlert Severity="Severity.Warning">Event nicht gefunden.</MudAlert>
+    <MudAlert Severity="Severity.Warning">Wette nicht gefunden.</MudAlert>
 }
 else
 {
@@ -22,6 +21,10 @@ else
         <MudStack Row="true" AlignItems="AlignItems.Center">
             <MudText Typo="Typo.h4">@ev.Event.Title</MudText>
             <MudSpacer />
+            @if (Betting.CurrentProfile?.IsAdmin == true && ev.Event.Status is EventStatus.Open or EventStatus.Locked)
+            {
+                <MudButton Href="@($"admin/bets/{ev.Event.Id}")" StartIcon="@Icons.Material.Filled.Edit" Size="Size.Small" Variant="Variant.Text">Bearbeiten</MudButton>
+            }
             <EventStatusChip Event="ev.Event" />
         </MudStack>
         @if (!string.IsNullOrWhiteSpace(ev.Event.Description))
@@ -29,7 +32,7 @@ else
             <MudText Class="mt-2" Style="white-space:pre-line">@ev.Event.Description</MudText>
         }
         <MudText Typo="Typo.caption" Class="mt-2 d-block">
-            Topf: @ev.TotalPool.ToString("N0") Coins
+            @ev.TotalBets Wetten · @ev.TotalStake.ToString("N0") Coins gesetzt
             @if (ev.Event.ClosesAt is { } closes) { <span> · Wettschluss: @closes.ToLocalTime().ToString("g")</span> }
         </MudText>
     </MudPaper>
@@ -41,15 +44,13 @@ else
                 <MudRadioGroup T="Guid?" @bind-Value="_selectedOption" Disabled="!ev.Event.AcceptsBets">
                     @foreach (var option in ev.Options)
                     {
-                        var pool = ev.PoolFor(option.Id);
-                        var odds = ev.OddsFor(option.Id);
-                        var bets = ev.Pools.TryGetValue(option.Id, out var p) ? p.BetCount : 0;
                         <MudStack Row="true" AlignItems="AlignItems.Center" Class="py-1">
                             <MudRadio T="Guid?" Value="@option.Id" Color="Color.Primary">
                                 @(ev.Event.WinningOptionId == option.Id ? "🏆 " : "")@option.Label
                             </MudRadio>
                             <MudSpacer />
-                            <MudText Typo="Typo.body2">@pool.ToString("N0") Coins · @bets Wetten · <b>@(odds is null ? "–" : $"{odds:0.00}x")</b></MudText>
+                            <MudText Typo="Typo.caption" Class="mr-2">@ev.BetsFor(option.Id) Wetten</MudText>
+                            <MudChip T="string" Color="Color.Primary" Variant="Variant.Outlined">@option.Odds.ToString("0.00")</MudChip>
                         </MudStack>
                     }
                 </MudRadioGroup>
@@ -61,7 +62,7 @@ else
                 <MudText Typo="Typo.h6" GutterBottom="true">Wette platzieren</MudText>
                 @if (!ev.Event.AcceptsBets)
                 {
-                    <MudAlert Severity="Severity.Info" Dense="true">Für dieses Event werden keine Wetten mehr angenommen.</MudAlert>
+                    <MudAlert Severity="Severity.Info" Dense="true">Für diese Wette werden keine Einsätze mehr angenommen.</MudAlert>
                 }
                 else
                 {
@@ -73,10 +74,11 @@ else
                         }
                         <MudChip T="string" Size="Size.Small" Color="Color.Secondary" OnClick="@(() => _amount = Betting.CurrentProfile?.Coins ?? 0)">All-in</MudChip>
                     </MudStack>
-                    @if (_selectedOption is { } sel && _amount > 0)
+                    @if (SelectedOption is { } sel && _amount > 0)
                     {
-                        var potential = (long)Math.Floor((double)_amount * (ev.TotalPool + _amount) / (ev.PoolFor(sel) + _amount));
-                        <MudText Typo="Typo.body2" Class="mb-2">Mögliche Auszahlung (aktueller Stand): <b>@potential.ToString("N0") Coins</b></MudText>
+                        <MudText Typo="Typo.body2" Class="mb-2">
+                            Möglicher Gewinn: <b>@Payouts.For(_amount, sel.Odds).ToString("N0") Coins</b> (Quote @sel.Odds.ToString("0.00"))
+                        </MudText>
                     }
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
                                Disabled="@(_busy || _selectedOption is null || _amount <= 0)" OnClick="PlaceBet">
@@ -92,34 +94,20 @@ else
                         @foreach (var bet in _myBets)
                         {
                             <MudListItem T="string">
-                                @bet.Amount.ToString("N0") auf <b>@OptionLabel(bet.OptionId)</b>
-                                @if (bet.Payout is { } payout) { <span> → @payout.ToString("N0") ausgezahlt</span> }
+                                @bet.Amount.ToString("N0") auf <b>@OptionLabel(bet.OptionId)</b> @@ @bet.Odds.ToString("0.00")
+                                @if (bet.Payout is { } payout)
+                                {
+                                    <span> → @payout.ToString("N0") ausgezahlt</span>
+                                }
+                                else
+                                {
+                                    <span> → möglich @bet.PotentialPayout.ToString("N0")</span>
+                                }
                             </MudListItem>
                         }
                     </MudList>
                 }
             </MudPaper>
-
-            @if (Betting.CurrentProfile?.IsAdmin == true && ev.Event.Status is EventStatus.Open or EventStatus.Locked)
-            {
-                <MudPaper Class="pa-4 mt-4" Elevation="2">
-                    <MudText Typo="Typo.h6" GutterBottom="true">Admin</MudText>
-                    <MudStack Spacing="2">
-                        @if (ev.Event.Status == EventStatus.Open)
-                        {
-                            <MudButton Variant="Variant.Outlined" Color="Color.Warning" Disabled="_busy" OnClick="Lock">Wetten schließen</MudButton>
-                        }
-                        <MudSelect T="Guid?" @bind-Value="_winner" Label="Gewinner-Option" Variant="Variant.Outlined">
-                            @foreach (var option in ev.Options)
-                            {
-                                <MudSelectItem T="Guid?" Value="@option.Id">@option.Label</MudSelectItem>
-                            }
-                        </MudSelect>
-                        <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_busy || _winner is null)" OnClick="Resolve">Auflösen & auszahlen</MudButton>
-                        <MudButton Variant="Variant.Text" Color="Color.Error" Disabled="_busy" OnClick="Cancel">Event abbrechen (Erstattung)</MudButton>
-                    </MudStack>
-                </MudPaper>
-            }
         </MudItem>
     </MudGrid>
 }
@@ -132,8 +120,9 @@ else
     private bool _loading = true;
     private bool _busy;
     private Guid? _selectedOption;
-    private Guid? _winner;
     private long _amount = 50;
+
+    private EventOption? SelectedOption => _event?.Options.FirstOrDefault(o => o.Id == _selectedOption);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -158,47 +147,13 @@ else
     private string OptionLabel(Guid optionId) =>
         _event?.Options.FirstOrDefault(o => o.Id == optionId)?.Label ?? "?";
 
-    private Task PlaceBet() => Run(async () =>
-    {
-        await Betting.PlaceBetAsync(_selectedOption!.Value, _amount);
-        Snackbar.Add($"{_amount:N0} Coins auf „{OptionLabel(_selectedOption.Value)}“ gesetzt.", Severity.Success);
-    });
-
-    private Task Lock() => Run(async () =>
-    {
-        await Betting.LockEventAsync(Id);
-        Snackbar.Add("Wetten geschlossen.", Severity.Info);
-    });
-
-    private async Task Resolve()
-    {
-        if (!await Confirm($"„{OptionLabel(_winner!.Value)}“ als Gewinner festlegen und den Topf auszahlen?")) return;
-        await Run(async () =>
-        {
-            await Betting.ResolveEventAsync(Id, _winner.Value);
-            Snackbar.Add("Event aufgelöst und ausgezahlt.", Severity.Success);
-        });
-    }
-
-    private async Task Cancel()
-    {
-        if (!await Confirm("Event abbrechen? Alle Einsätze werden erstattet.")) return;
-        await Run(async () =>
-        {
-            await Betting.CancelEventAsync(Id);
-            Snackbar.Add("Event abgebrochen, Einsätze erstattet.", Severity.Info);
-        });
-    }
-
-    private async Task<bool> Confirm(string message) =>
-        await Dialogs.ShowMessageBoxAsync("Bestätigen", message, yesText: "Ja", cancelText: "Abbrechen") == true;
-
-    private async Task Run(Func<Task> action)
+    private async Task PlaceBet()
     {
         _busy = true;
         try
         {
-            await action();
+            await Betting.PlaceBetAsync(_selectedOption!.Value, _amount);
+            Snackbar.Add($"{_amount:N0} Coins auf „{OptionLabel(_selectedOption.Value)}“ gesetzt.", Severity.Success);
             await Load();
         }
         catch (Exception ex)

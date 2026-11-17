@@ -16,7 +16,7 @@ else
         <MudItem xs="6" md="3"><Stat Label="Wetten" Value="@_rows.Count.ToString("N0")" /></MudItem>
         <MudItem xs="6" md="3"><Stat Label="Eingesetzt" Value="@_rows.Sum(r => r.Bet.Amount).ToString("N0")" /></MudItem>
         <MudItem xs="6" md="3"><Stat Label="Ausgezahlt" Value="@_rows.Sum(r => r.Bet.Payout ?? 0).ToString("N0")" /></MudItem>
-        <MudItem xs="6" md="3"><Stat Label="Offen" Value="@_rows.Where(r => r.Bet.Payout is null).Sum(r => r.Bet.Amount).ToString("N0")" /></MudItem>
+        <MudItem xs="6" md="3"><Stat Label="Offen (möglicher Gewinn)" Value="@_rows.Where(r => r.Bet.Payout is null).Sum(r => r.Bet.PotentialPayout).ToString("N0")" /></MudItem>
     </MudGrid>
 
     <MudTable Items="_rows" Hover="true" Dense="true" Elevation="2">
@@ -24,6 +24,7 @@ else
             <MudTh>Event</MudTh>
             <MudTh>Tipp</MudTh>
             <MudTh Style="text-align:right">Einsatz</MudTh>
+            <MudTh Style="text-align:right">Quote</MudTh>
             <MudTh Style="text-align:right">Auszahlung</MudTh>
             <MudTh>Datum</MudTh>
         </HeaderContent>
@@ -31,6 +32,7 @@ else
             <MudTd DataLabel="Event"><MudLink Href="@($"events/{context.Bet.EventId}")">@context.EventTitle</MudLink></MudTd>
             <MudTd DataLabel="Tipp">@context.OptionLabel</MudTd>
             <MudTd DataLabel="Einsatz" Style="text-align:right">@context.Bet.Amount.ToString("N0")</MudTd>
+            <MudTd DataLabel="Quote" Style="text-align:right">@context.Bet.Odds.ToString("0.00")</MudTd>
             <MudTd DataLabel="Auszahlung" Style="text-align:right">
                 @if (context.Bet.Payout is { } payout)
                 {
@@ -38,7 +40,7 @@ else
                 }
                 else
                 {
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">offen</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">offen (möglich @context.Bet.PotentialPayout.ToString("N0"))</MudText>
                 }
             </MudTd>
             <MudTd DataLabel="Datum">@context.Bet.CreatedAt.ToLocalTime().ToString("g")</MudTd>

@@ -1,0 +1,29 @@
+<MudDialog>
+    <DialogContent>
+        <MudText Class="mb-3">Welche Option hat gewonnen? Gewinner erhalten <b>Einsatz × Quote</b> (Quote zum Zeitpunkt ihrer Wette), alle anderen Einsätze verfallen.</MudText>
+        <MudRadioGroup T="Guid?" @bind-Value="_winner">
+            @foreach (var option in Event.Options)
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudRadio T="Guid?" Value="@option.Id" Color="Color.Success">@option.Label</MudRadio>
+                    <MudSpacer />
+                    <MudText Typo="Typo.caption">@Event.BetsFor(option.Id) Wetten · @Event.StakeFor(option.Id).ToString("N0") Coins</MudText>
+                </MudStack>
+            }
+        </MudRadioGroup>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())">Abbrechen</MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled" Disabled="_winner is null" OnClick="@(() => MudDialog.Close(DialogResult.Ok(_winner!.Value)))">
+            Auflösen & auszahlen
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter, EditorRequired] public EventOverview Event { get; set; } = default!;
+
+    private Guid? _winner;
+}

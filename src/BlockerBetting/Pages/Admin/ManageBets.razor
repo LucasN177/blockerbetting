@@ -1,0 +1,143 @@
+@page "/admin/bets"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+@inject IDialogService Dialogs
+
+<PageTitle>Wetten verwalten · BlockerBetting</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4" Wrap="Wrap.Wrap">
+    <MudText Typo="Typo.h4">Wetten verwalten</MudText>
+    <MudSpacer />
+    <MudSwitch @bind-Value="_showClosed" Color="Color.Primary" Label="Abgeschlossene anzeigen" />
+    <MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="Load" aria-label="Aktualisieren" />
+    <MudButton Href="admin/bets/new" Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add">Neue Wette</MudButton>
+</MudStack>
+
+@if (Betting.CurrentProfile?.IsAdmin != true)
+{
+    <MudAlert Severity="Severity.Warning">Nur Admins können Wetten verwalten.</MudAlert>
+}
+else if (_events is null)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudTable Items="Visible" Hover="true" Elevation="2" Breakpoint="Breakpoint.Sm" Loading="_busy">
+        <HeaderContent>
+            <MudTh>Wette</MudTh>
+            <MudTh>Status</MudTh>
+            <MudTh>Optionen (Quote · Einsätze)</MudTh>
+            <MudTh Style="text-align:right">Gesamt</MudTh>
+            <MudTh Style="text-align:right">Aktionen</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Wette">
+                <MudLink Href="@($"events/{context.Event.Id}")"><b>@context.Event.Title</b></MudLink>
+                <MudText Typo="Typo.caption" Class="d-block">
+                    @(context.Event.ClosesAt is { } c ? $"Wettschluss {c.ToLocalTime():g}" : "Kein Wettschluss")
+                </MudText>
+            </MudTd>
+            <MudTd DataLabel="Status"><EventStatusChip Event="context.Event" /></MudTd>
+            <MudTd DataLabel="Optionen">
+                @foreach (var option in context.Options)
+                {
+                    <MudText Typo="Typo.body2">
+                        @(context.Event.WinningOptionId == option.Id ? "🏆 " : "")@option.Label:
+                        <b>@option.Odds.ToString("0.00")</b> · @context.StakeFor(option.Id).ToString("N0") Coins (@context.BetsFor(option.Id))
+                    </MudText>
+                }
+            </MudTd>
+            <MudTd DataLabel="Gesamt" Style="text-align:right">@context.TotalStake.ToString("N0") Coins<br /><MudText Typo="Typo.caption">@context.TotalBets Wetten</MudText></MudTd>
+            <MudTd DataLabel="Aktionen" Style="text-align:right; white-space:nowrap">
+                @if (context.Event.Status is EventStatus.Open or EventStatus.Locked)
+                {
+                    <MudTooltip Text="Bearbeiten / Quoten ändern">
+                        <MudIconButton Href="@($"admin/bets/{context.Event.Id}")" Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
+                    </MudTooltip>
+                    @if (context.Event.Status == EventStatus.Open)
+                    {
+                        <MudTooltip Text="Wetten schließen">
+                            <MudIconButton Icon="@Icons.Material.Filled.Lock" Size="Size.Small" Color="Color.Warning" Disabled="_busy" OnClick="@(() => Lock(context))" />
+                        </MudTooltip>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="Wieder öffnen">
+                            <MudIconButton Icon="@Icons.Material.Filled.LockOpen" Size="Size.Small" Color="Color.Success" Disabled="_busy" OnClick="@(() => Reopen(context))" />
+                        </MudTooltip>
+                    }
+                    <MudTooltip Text="Auflösen & auszahlen">
+                        <MudIconButton Icon="@Icons.Material.Filled.EmojiEvents" Size="Size.Small" Color="Color.Primary" Disabled="_busy" OnClick="@(() => Resolve(context))" />
+                    </MudTooltip>
+                    <MudTooltip Text="Abbrechen & erstatten">
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Color="Color.Error" Disabled="_busy" OnClick="@(() => Cancel(context))" />
+                    </MudTooltip>
+                }
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>Noch keine Wetten angelegt.</NoRecordsContent>
+    </MudTable>
+}
+
+@code {
+    private List<EventOverview>? _events;
+    private bool _showClosed;
+    private bool _busy;
+
+    private IEnumerable<EventOverview> Visible => (_events ?? [])
+        .Where(e => _showClosed || e.Event.Status is EventStatus.Open or EventStatus.Locked);
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        try { _events = await Betting.GetEventsAsync(); }
+        catch (Exception ex)
+        {
+            _events = [];
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+    }
+
+    private Task Lock(EventOverview ev) => Run(() => Betting.LockEventAsync(ev.Event.Id), $"„{ev.Event.Title}“ geschlossen.");
+
+    private Task Reopen(EventOverview ev) => Run(() => Betting.ReopenEventAsync(ev.Event.Id), $"„{ev.Event.Title}“ wieder geöffnet.");
+
+    private async Task Resolve(EventOverview ev)
+    {
+        var parameters = new DialogParameters<ResolveDialog> { { d => d.Event, ev } };
+        var dialog = await Dialogs.ShowAsync<ResolveDialog>($"„{ev.Event.Title}“ auflösen", parameters);
+        var result = await dialog.Result;
+        if (result is { Canceled: false, Data: Guid winner })
+            await Run(() => Betting.ResolveEventAsync(ev.Event.Id, winner), "Aufgelöst und ausgezahlt.");
+    }
+
+    private async Task Cancel(EventOverview ev)
+    {
+        var confirmed = await Dialogs.ShowMessageBoxAsync("Wette abbrechen",
+            $"„{ev.Event.Title}“ abbrechen? Alle {ev.TotalBets} Einsätze ({ev.TotalStake:N0} Coins) werden erstattet.",
+            yesText: "Abbrechen & erstatten", cancelText: "Zurück");
+        if (confirmed == true)
+            await Run(() => Betting.CancelEventAsync(ev.Event.Id), "Abgebrochen, Einsätze erstattet.");
+    }
+
+    private async Task Run(Func<Task> action, string success)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+            Snackbar.Add(success, Severity.Success);
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

@@ -45,6 +45,7 @@ public class EventOption : BaseModel
     [PrimaryKey("id")] public Guid Id { get; set; }
     [Column("event_id")] public Guid EventId { get; set; }
     [Column("label")] public string Label { get; set; } = "";
+    [Column("odds")] public decimal Odds { get; set; }
     [Column("sort_order")] public int SortOrder { get; set; }
 }
 
@@ -65,21 +66,32 @@ public class Bet : BaseModel
     [Column("event_id")] public Guid EventId { get; set; }
     [Column("option_id")] public Guid OptionId { get; set; }
     [Column("amount")] public long Amount { get; set; }
+    [Column("odds")] public decimal Odds { get; set; }
     [Column("payout")] public long? Payout { get; set; }
     [Column("created_at")] public DateTime CreatedAt { get; set; }
+
+    /// <summary>Payout if this bet wins (fixed odds stored at bet time).</summary>
+    [JsonIgnore]
+    public long PotentialPayout => Payouts.For(Amount, Odds);
 }
 
-/// <summary>An event together with its options and current pools.</summary>
+public static class Payouts
+{
+    /// <summary>Same rounding as the database: floor(amount × odds).</summary>
+    public static long For(long amount, decimal odds) => (long)Math.Floor(amount * odds);
+}
+
+/// <summary>Option data sent to create_event / update_event.</summary>
+public record OptionInput(Guid? Id, string Label, decimal Odds);
+
+/// <summary>An event together with its options and current stake volume.</summary>
 public record EventOverview(BetEvent Event, IReadOnlyList<EventOption> Options, IReadOnlyDictionary<Guid, OptionPool> Pools)
 {
-    public long TotalPool => Pools.Values.Sum(p => p.TotalAmount);
+    public long TotalStake => Pools.Values.Sum(p => p.TotalAmount);
 
-    public long PoolFor(Guid optionId) => Pools.TryGetValue(optionId, out var p) ? p.TotalAmount : 0;
+    public int TotalBets => Pools.Values.Sum(p => p.BetCount);
 
-    /// <summary>Current pari-mutuel multiplier for an option (payout per coin), null if nobody bet on it yet.</summary>
-    public double? OddsFor(Guid optionId)
-    {
-        var pool = PoolFor(optionId);
-        return pool == 0 ? null : (double)TotalPool / pool;
-    }
+    public long StakeFor(Guid optionId) => Pools.TryGetValue(optionId, out var p) ? p.TotalAmount : 0;
+
+    public int BetsFor(Guid optionId) => Pools.TryGetValue(optionId, out var p) ? p.BetCount : 0;
 }

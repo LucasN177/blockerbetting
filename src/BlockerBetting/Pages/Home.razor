@@ -41,15 +41,12 @@ else
                     <MudCardContent>
                         @foreach (var option in ev.Options)
                         {
-                            var share = ev.TotalPool == 0 ? 0 : 100.0 * ev.PoolFor(option.Id) / ev.TotalPool;
-                            var odds = ev.OddsFor(option.Id);
-                            <MudStack Row="true" Justify="Justify.SpaceBetween" Class="mt-2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-1">
                                 <MudText Typo="Typo.body2">@(ev.Event.WinningOptionId == option.Id ? "🏆 " : "")@option.Label</MudText>
-                                <MudText Typo="Typo.body2">@(odds is null ? "–" : $"{odds:0.00}x")</MudText>
+                                <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">@option.Odds.ToString("0.00")</MudChip>
                             </MudStack>
-                            <MudProgressLinear Value="share" Color="Color.Primary" Rounded="true" Size="Size.Small" />
                         }
-                        <MudText Typo="Typo.caption" Class="mt-3 d-block">Topf: @ev.TotalPool.ToString("N0") Coins</MudText>
+                        <MudText Typo="Typo.caption" Class="mt-3 d-block">@ev.TotalBets Wetten · @ev.TotalStake.ToString("N0") Coins gesetzt</MudText>
                     </MudCardContent>
                     <MudCardActions>
                         <MudButton Href="@($"events/{ev.Event.Id}")" Variant="Variant.Text" Color="Color.Primary">

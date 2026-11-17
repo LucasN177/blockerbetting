@@ -113,20 +113,39 @@ public class BettingService(Supabase.Client client)
         await RefreshProfileAsync();
     }
 
-    public async Task<Guid> CreateEventAsync(string title, string? description, DateTime? closesAtUtc, IEnumerable<string> options)
+    public async Task<Guid> CreateEventAsync(string title, string? description, DateTime? closesAtUtc, IEnumerable<OptionInput> options)
     {
         var response = await client.Rpc("create_event", new Dictionary<string, object?>
         {
             ["p_title"] = title,
             ["p_description"] = description,
             ["p_closes_at"] = closesAtUtc,
-            ["p_options"] = options.ToArray(),
+            ["p_options"] = ToJson(options),
         });
         return Guid.Parse(response.Content!.Trim().Trim('"'));
     }
 
+    public Task UpdateEventAsync(Guid eventId, string title, string? description, DateTime? closesAtUtc, IEnumerable<OptionInput> options) =>
+        client.Rpc("update_event", new Dictionary<string, object?>
+        {
+            ["p_event_id"] = eventId,
+            ["p_title"] = title,
+            ["p_description"] = description,
+            ["p_closes_at"] = closesAtUtc,
+            ["p_options"] = ToJson(options),
+        });
+
+    private static List<Dictionary<string, object?>> ToJson(IEnumerable<OptionInput> options) =>
+        options.Select(o => new Dictionary<string, object?>
+        {
+            ["id"] = o.Id, ["label"] = o.Label, ["odds"] = o.Odds,
+        }).ToList();
+
     public Task LockEventAsync(Guid eventId) =>
         client.Rpc("lock_event", new Dictionary<string, object> { ["p_event_id"] = eventId });
+
+    public Task ReopenEventAsync(Guid eventId) =>
+        client.Rpc("reopen_event", new Dictionary<string, object> { ["p_event_id"] = eventId });
 
     public async Task ResolveEventAsync(Guid eventId, Guid winningOptionId)
     {
