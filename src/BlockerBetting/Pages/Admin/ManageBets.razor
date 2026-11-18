@@ -74,6 +74,9 @@ else
                 <div class="bb-muted" style="font-size:0.75rem">@context.TotalBets Wetten</div>
             </MudTd>
             <MudTd DataLabel="Aktionen" Style="text-align:right; white-space:nowrap">
+                <MudTooltip Text="Kopieren & als neue Wette anlegen">
+                    <MudIconButton Href="@($"admin/bets/new?copy={context.Event.Id}")" Icon="@Icons.Material.Filled.ContentCopy" Size="Size.Small" />
+                </MudTooltip>
                 @if (context.Event.Status is EventStatus.Open or EventStatus.Locked)
                 {
                     <MudTooltip Text="Bearbeiten / Quoten ändern">

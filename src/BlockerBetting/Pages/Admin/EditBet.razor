@@ -25,7 +25,17 @@ else if (_readOnlyReason is not null)
 else
 {
     <div class="bb-card bb-card-pad" style="max-width:56rem">
-        <BetForm Draft="_draft!" DeadlineInFuture="IsNew" CancelHref="admin/bets" Busy="_busy"
+        @if (_copiedFrom is not null)
+        {
+            <div class="d-flex align-center gap-3 mb-6 pa-4" style="border-radius:14px; background:rgba(var(--mud-palette-warning-rgb),0.12)">
+                <MudIcon Icon="@Icons.Material.Rounded.ContentCopy" Color="Color.Warning" />
+                <div class="bb-grow" style="font-size:0.88rem">
+                    Kopie von <b>„@_copiedFrom“</b>. Alle Felder sind anpassbar – die ursprüngliche Wette bleibt unverändert.
+                    @if (_deadlineCleared) { <span> Der alte Wettschluss war abgelaufen, bitte einen neuen wählen.</span> }
+                </div>
+            </div>
+        }
+        <BetForm @key="_formKey" Draft="_draft!" DeadlineInFuture="IsNew" CancelHref="admin/bets" Busy="_busy"
                  SubmitText="@(IsNew ? "Wette anlegen" : "Speichern")" OnSubmit="Save" />
     </div>
 }
@@ -33,19 +43,51 @@ else
 @code {
     [Parameter] public Guid? Id { get; set; }
 
+    /// <summary>Existing bet to copy into the "new bet" form (<c>admin/bets/new?copy={id}</c>).</summary>
+    [SupplyParameterFromQuery(Name = "copy")] public Guid? CopyId { get; set; }
+
     private bool IsNew => Id is null;
 
     private BetDraft? _draft;
     private bool _busy;
     private string? _readOnlyReason;
+    private string? _copiedFrom;
+    private bool _deadlineCleared;
+    private int _formKey;
 
     protected override async Task OnParametersSetAsync()
     {
         _draft = null;
         _readOnlyReason = null;
-        if (IsNew)
+        _copiedFrom = null;
+        _deadlineCleared = false;
+        _formKey++;
+        if (IsNew && CopyId is null)
         {
             _draft = BetDraft.NewYesNo();
+            return;
+        }
+        if (IsNew)
+        {
+            try
+            {
+                var source = await Betting.GetEventAsync(CopyId!.Value);
+                if (source is null)
+                {
+                    _draft = BetDraft.NewYesNo();
+                    Snackbar.Add("Die zu kopierende Wette wurde nicht gefunden.", Severity.Warning);
+                }
+                else
+                {
+                    _draft = BetDraft.CopyOf(source, out _deadlineCleared);
+                    _copiedFrom = source.Event.Title;
+                }
+            }
+            catch (Exception ex)
+            {
+                _draft = BetDraft.NewYesNo();
+                Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+            }
             return;
         }
 

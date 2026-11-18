@@ -19,12 +19,19 @@
                     sie nach dem Wettschluss selbst auflösen und auszahlen.
                 </div>
             </div>
-            @if (_basedOn is not null)
+            @if (_basedOn is not null || _copiedFrom is not null)
             {
                 <div class="d-flex align-center gap-3 mb-6 pa-4" style="border-radius:14px; background:rgba(var(--mud-palette-warning-rgb),0.12)">
-                    <MudIcon Icon="@Icons.Material.Rounded.EditNote" Color="Color.Warning" />
+                    <MudIcon Icon="@(_copiedFrom is not null ? Icons.Material.Rounded.ContentCopy : Icons.Material.Rounded.EditNote)" Color="Color.Warning" />
                     <div class="bb-grow" style="font-size:0.88rem">
-                        Neue Anfrage auf Basis von <b>„@_basedOn.Title“</b>. Alle Felder sind anpassbar – die alte Anfrage bleibt unverändert.
+                        @if (_copiedFrom is not null)
+                        {
+                            <span>Kopie der Wette <b>„@_copiedFrom“</b>. Alle Felder sind anpassbar – die ursprüngliche Wette bleibt unverändert, deine Kopie wird als neuer Vorschlag geprüft.</span>
+                        }
+                        else
+                        {
+                            <span>Neue Anfrage auf Basis von <b>„@_basedOn!.Title“</b>. Alle Felder sind anpassbar – die alte Anfrage bleibt unverändert.</span>
+                        }
                         @if (_deadlineCleared) { <span> Der alte Wettschluss war abgelaufen, bitte einen neuen wählen.</span> }
                     </div>
                     <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" OnClick="ResetForm">Verwerfen</MudButton>
@@ -151,6 +158,7 @@
         _deadlineCleared = request.ClosesAt <= DateTime.UtcNow;
         if (_deadlineCleared) _draft.ClosesDate = null;
         _basedOn = request;
+        _copiedFrom = null;
         _formKey++;
         _scrollToForm = true;
     }
@@ -169,8 +177,38 @@
     {
         _draft = BetDraft.NewYesNo();
         _basedOn = null;
+        _copiedFrom = null;
         _deadlineCleared = false;
         _formKey++;
+    }
+
+    /// <summary>Existing bet to copy into the form as a new request (<c>requests?copy={id}</c>).</summary>
+    [SupplyParameterFromQuery(Name = "copy")] public Guid? CopyId { get; set; }
+
+    private string? _copiedFrom;
+    private Guid? _loadedCopyId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (CopyId is not { } copyId || copyId == _loadedCopyId) return;
+        _loadedCopyId = copyId;
+        try
+        {
+            var source = await Betting.GetEventAsync(copyId);
+            if (source is null)
+            {
+                Snackbar.Add("Die zu kopierende Wette wurde nicht gefunden.", Severity.Warning);
+                return;
+            }
+            _draft = BetDraft.CopyOf(source, out _deadlineCleared);
+            _copiedFrom = source.Event.Title;
+            _basedOn = null;
+            _formKey++;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
     }
     private List<BetRequest>? _requests;
     private bool _busy;

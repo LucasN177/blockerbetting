@@ -19,6 +19,7 @@ Interne Wettplattform für das Team: Jede Person hat einen eigenen Account, star
 | Rangliste | Leaderboard aller Spieler nach Coins. |
 | Admin | Menüpunkt **„Wetten verwalten“**: Wetten mit Optionen & Quoten anlegen und bearbeiten, schließen/wieder öffnen, Gewinner festlegen und auszahlen oder abbrechen (Abbruch = Rückerstattung). |
 | Wett-Anfragen | Jeder Spieler kann unter **„Wette vorschlagen“** eine Wette mit Optionen, Quoten-Vorschlag und Wettschluss einreichen. Admins prüfen sie unter **„Anfragen“**, passen sie bei Bedarf an und genehmigen oder lehnen sie (mit Begründung) ab. |
+| Wetten kopieren | Über **„Kopieren“** wird eine bestehende Wette zur Vorlage: Titel, Beschreibung, Optionen und Quoten werden übernommen und sind frei anpassbar. Admins legen die Kopie direkt an, Spieler reichen sie als Wett-Anfrage ein. |
 | Ersteller-Recht | Der Ersteller einer Wette – bei genehmigten Anfragen der Antragsteller – darf sie **nach dem Wettschluss** selbst auflösen und auszahlen. Admins können jederzeit auflösen. |
 | Tagesbonus | Jeden Morgen um **8:00 Uhr** (deutsche Zeit) erhält jeder Spieler **20 Coins** – per `pg_cron`-Job direkt in Supabase, höchstens einmal pro Tag. |
 | Push-Benachrichtigungen | Admins erhalten eine Push-Nachricht bei neuen Wett-Anfragen, Antragsteller bei Annahme oder Ablehnung – auch im Browser ohne Installation (iPhone: nur als Home-Bildschirm-App). |

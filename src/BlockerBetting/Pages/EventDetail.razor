@@ -39,6 +39,10 @@ else
             {
                 <MudButton Href="@($"admin/bets/{ev.Event.Id}")" StartIcon="@Icons.Material.Rounded.Edit" Size="Size.Small" Variant="Variant.Outlined">Bearbeiten</MudButton>
             }
+            @* Admins create the copy directly, players submit it as a request. *@
+            <MudButton Href="@(Betting.CurrentProfile?.IsAdmin == true ? $"admin/bets/new?copy={ev.Event.Id}" : $"requests?copy={ev.Event.Id}")"
+                       StartIcon="@Icons.Material.Rounded.ContentCopy" Size="Size.Small" Variant="Variant.Outlined"
+                       title="@(Betting.CurrentProfile?.IsAdmin == true ? "Als neue Wette anlegen" : "Als neue Wette vorschlagen")">Kopieren</MudButton>
         </div>
         <MudText Typo="Typo.h4">@ev.Event.Title</MudText>
         <CreatorTag Item="ev" Size="24" Class="mt-2" />

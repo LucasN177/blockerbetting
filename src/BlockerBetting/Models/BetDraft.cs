@@ -36,6 +36,19 @@ public class BetDraft
         return draft;
     }
 
+    /// <summary>
+    /// A new, independent bet based on an existing one: same texts and odds, but no link to the
+    /// original options. A deadline that has already passed is cleared so a new one has to be picked.
+    /// </summary>
+    public static BetDraft CopyOf(EventOverview ev, out bool deadlineCleared)
+    {
+        var draft = new BetDraft { Title = ev.Event.Title, Description = ev.Event.Description };
+        deadlineCleared = ev.Event.ClosesAt is { } closes && closes <= DateTime.UtcNow;
+        if (!deadlineCleared) draft.SetDeadline(ev.Event.ClosesAt);
+        draft.Options = ev.Options.Select(o => new DraftOption { Label = o.Label, Odds = o.Odds }).ToList();
+        return draft;
+    }
+
     public static BetDraft From(BetRequest request)
     {
         var draft = new BetDraft { Title = request.Title, Description = request.Description };

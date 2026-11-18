@@ -3,6 +3,13 @@
 Alle wichtigen Änderungen an BlockerBetting. Die Versionsnummer steht unten in der Navigation.
 Einträge mit **Datenbank** brauchen eine SQL-Migration aus `supabase/migrations/`.
 
+## 1.9.1 – 18.11.2026
+
+### Neu
+- **Wetten kopieren:** Jede Wette lässt sich über **Kopieren** (Wett-Detailseite, bei Admins auch in „Wetten verwalten“) als Vorlage für eine neue Wette nutzen. Titel, Beschreibung, Optionen und Quoten werden übernommen und sind frei anpassbar.
+- Admins legen die Kopie direkt als neue Wette an, Spieler reichen sie als Wett-Anfrage zur Prüfung ein.
+- Ist der Wettschluss der Vorlage bereits abgelaufen, muss ein neuer gewählt werden. Die ursprüngliche Wette bleibt unverändert.
+
 ## 1.9.0 – 17.11.2026
 
 ### Neu
