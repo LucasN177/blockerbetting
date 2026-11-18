@@ -360,6 +360,30 @@ public class BettingService(Supabase.Client client)
         RequestsChanged?.Invoke();
     }
 
+    // ---------- Chat ----------
+
+    public const int ChatMaxLength = 500;
+
+    /// <summary>The latest chat messages, oldest first, with author names.</summary>
+    public async Task<List<ChatEntry>> GetChatMessagesAsync(int limit = 100)
+    {
+        var messages = (await client.From<ChatMessage>()
+            .Order("created_at", Ordering.Descending)
+            .Limit(limit)
+            .Get()).Models;
+        if (messages.Count == 0) return [];
+
+        var names = (await client.From<Profile>().Get()).Models.ToDictionary(p => p.Id, p => p.DisplayName);
+        var uid = CurrentUserId;
+        return messages
+            .OrderBy(m => m.CreatedAt)
+            .Select(m => new ChatEntry(m, names.GetValueOrDefault(m.UserId, "Unbekannt"), m.UserId == uid))
+            .ToList();
+    }
+
+    public Task PostChatMessageAsync(string body) =>
+        client.Rpc("post_chat_message", new Dictionary<string, object> { ["p_body"] = body.Trim() });
+
     /// <summary>Turns Supabase/Postgrest errors into a readable message.</summary>
     public static string ErrorMessage(Exception ex)
     {

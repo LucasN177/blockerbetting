@@ -3,6 +3,15 @@
 Alle wichtigen Änderungen an BlockerBetting. Die Versionsnummer steht unten in der Navigation.
 Einträge mit **Datenbank** brauchen eine SQL-Migration aus `supabase/migrations/`.
 
+## 2.0.0 – 18.11.2026
+
+### Neu
+- **Chat:** neuer Menüpunkt mit einem öffentlichen Chatraum für alle Spieler.
+- Jede Nachricht zeigt den Namen des Absenders und die Uhrzeit. Eigene Nachrichten stehen rechts, die der anderen links.
+- Neue Nachrichten erscheinen über **Aktualisieren** (noch keine Live-Aktualisierung). Senden per Enter, maximal 500 Zeichen.
+
+**Datenbank:** `009_chat.sql`
+
 ## 1.9.1 – 18.11.2026
 
 ### Neu

@@ -1,0 +1,115 @@
+@page "/chat"
+@inject BettingService Betting
+@inject ISnackbar Snackbar
+@inject IJSRuntime Js
+
+<PageTitle>Chat · BlockerBetting</PageTitle>
+
+<PageHeader Title="Chat" Eyebrow="Für alle"
+            Subtitle="Ein offener Raum für alle Spieler. Neue Nachrichten erscheinen beim Aktualisieren.">
+    <Actions>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Rounded.Refresh" Disabled="_loading" OnClick="Load">Aktualisieren</MudButton>
+    </Actions>
+</PageHeader>
+
+<div class="bb-card bb-chat" style="max-width:56rem">
+    <div class="bb-chat-messages" id="bb-chat-messages">
+        @if (_messages is null)
+        {
+            <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+        }
+        else if (_messages.Count == 0)
+        {
+            <div class="bb-muted" style="text-align:center; margin:auto">Noch keine Nachrichten – schreib die erste!</div>
+        }
+        else
+        {
+            @foreach (var entry in _messages)
+            {
+                <div class="bb-chat-row @(entry.IsOwn ? "bb-chat-own" : "")">
+                    @if (!entry.IsOwn)
+                    {
+                        <Avatar Name="@entry.AuthorName" Size="32" />
+                    }
+                    <div class="bb-chat-bubble">
+                        <div class="bb-chat-meta">
+                            <b>@(entry.IsOwn ? "Du" : entry.AuthorName)</b>
+                            <span>@Fmt.ShortDate(entry.Message.CreatedAt)</span>
+                        </div>
+                        <div class="bb-chat-body">@entry.Message.Body</div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+
+    <div class="bb-chat-input">
+        <MudTextField @bind-Value="_text" Placeholder="Nachricht schreiben …" Variant="Variant.Outlined" Margin="Margin.Dense"
+                      Immediate="true" MaxLength="BettingService.ChatMaxLength" Disabled="_sending" Class="bb-grow"
+                      OnKeyDown="OnKeyDown" autocomplete="off" />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" EndIcon="@Icons.Material.Rounded.Send"
+                   Disabled="@(_sending || string.IsNullOrWhiteSpace(_text))" OnClick="Send">Senden</MudButton>
+    </div>
+</div>
+
+@code {
+    private List<ChatEntry>? _messages;
+    private string _text = "";
+    private bool _loading;
+    private bool _sending;
+    private bool _scrollToBottom;
+
+    protected override Task OnInitializedAsync() => Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        try
+        {
+            _messages = await Betting.GetChatMessagesAsync();
+            _scrollToBottom = true;
+        }
+        catch (Exception ex)
+        {
+            _messages ??= [];
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnKeyDown(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter" && !e.ShiftKey) await Send();
+    }
+
+    private async Task Send()
+    {
+        var text = _text.Trim();
+        if (text.Length == 0 || _sending) return;
+        _sending = true;
+        try
+        {
+            await Betting.PostChatMessageAsync(text);
+            _text = "";
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(BettingService.ErrorMessage(ex), Severity.Error);
+        }
+        finally
+        {
+            _sending = false;
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!_scrollToBottom) return;
+        _scrollToBottom = false;
+        await Js.InvokeVoidAsync("bbScrollToBottom", "bb-chat-messages");
+    }
+}

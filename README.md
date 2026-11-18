@@ -20,6 +20,7 @@ Interne Wettplattform für das Team: Jede Person hat einen eigenen Account, star
 | Admin | Menüpunkt **„Wetten verwalten“**: Wetten mit Optionen & Quoten anlegen und bearbeiten, schließen/wieder öffnen, Gewinner festlegen und auszahlen oder abbrechen (Abbruch = Rückerstattung). |
 | Wett-Anfragen | Jeder Spieler kann unter **„Wette vorschlagen“** eine Wette mit Optionen, Quoten-Vorschlag und Wettschluss einreichen. Admins prüfen sie unter **„Anfragen“**, passen sie bei Bedarf an und genehmigen oder lehnen sie (mit Begründung) ab. |
 | Wetten kopieren | Über **„Kopieren“** wird eine bestehende Wette zur Vorlage: Titel, Beschreibung, Optionen und Quoten werden übernommen und sind frei anpassbar. Admins legen die Kopie direkt an, Spieler reichen sie als Wett-Anfrage ein. |
+| Chat | Öffentlicher Chatraum für alle Spieler unter **„Chat“**. Nachrichten zeigen Absender und Uhrzeit, eigene rechts, fremde links. Neue Nachrichten erscheinen per **Aktualisieren** (noch kein Realtime). Geschrieben wird nur über die RPC `post_chat_message`. |
 | Ersteller-Recht | Der Ersteller einer Wette – bei genehmigten Anfragen der Antragsteller – darf sie **nach dem Wettschluss** selbst auflösen und auszahlen. Admins können jederzeit auflösen. |
 | Tagesbonus | Jeden Morgen um **8:00 Uhr** (deutsche Zeit) erhält jeder Spieler **20 Coins** – per `pg_cron`-Job direkt in Supabase, höchstens einmal pro Tag. |
 | Push-Benachrichtigungen | Admins erhalten eine Push-Nachricht bei neuen Wett-Anfragen, Antragsteller bei Annahme oder Ablehnung – auch im Browser ohne Installation (iPhone: nur als Home-Bildschirm-App). |
@@ -71,6 +72,7 @@ Die SQL-Dateien in [`supabase/migrations/`](supabase/migrations/) werden im Supa
 | `006_games_roulette.sql` | Spiele (Beta): Roulette mit serverseitiger Ziehung |
 | `007_games_blackjack.sql` | Spiele (Beta): Blackjack – Deck und Spielstand nur serverseitig |
 | `008_poor_mode.sql` | Poor Mode: eingesammelte Coins gutschreiben (1 Coin pro Klick) |
+| `009_chat.sql` | Öffentlicher Chat: Nachrichten-Tabelle (lesen für alle Spieler), Schreiben per RPC |
 
 ## Push-Benachrichtigungen
 

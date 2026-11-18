@@ -115,6 +115,18 @@ public class BetRequest : BaseModel
     [Column("created_at")] public DateTime CreatedAt { get; set => field = BerlinTime.ToUtc(value); }
 }
 
+[Table("chat_messages")]
+public class ChatMessage : BaseModel
+{
+    [PrimaryKey("id")] public Guid Id { get; set; }
+    [Column("user_id")] public Guid UserId { get; set; }
+    [Column("body")] public string Body { get; set; } = "";
+    [Column("created_at")] public DateTime CreatedAt { get; set => field = BerlinTime.ToUtc(value); }
+}
+
+/// <summary>A chat message ready for display: author name and whether it is the own message.</summary>
+public record ChatEntry(ChatMessage Message, string AuthorName, bool IsOwn);
+
 public record Winner(string DisplayName, long Payout);
 
 /// <summary>The most recently resolved bet and its winners.</summary>
